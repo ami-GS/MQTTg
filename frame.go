@@ -22,18 +22,20 @@ const (
 )
 
 type FixedHeader struct {
-	Type   MessageType
-	Dup    bool
-	QoS    uint8
-	Retain bool
+	Type         MessageType
+	Dup          bool
+	QoS          uint8
+	Retain       bool
+	RemainLength uint8
 }
 
-func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool) *FixedHeader {
+func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length uint8) *FixedHeader {
 	return &FixedHeader{
-		Type:   mType,
-		Dup:    dup,
-		QoS:    qos,
-		Retain: retain,
+		Type:         mType,
+		Dup:          dup,
+		QoS:          qos,
+		Retain:       retain,
+		RemainLength: length,
 	}
 }
 
