@@ -58,8 +58,26 @@ const (
 	Password     ConnectFlag = 0x40
 	UserName     ConnectFlag = 0x80
 )
+
+type ConnectMessage struct {
+	*FixedHeader
+	ProtoName    string
+	ProtoLevel   uint8
+	ConnectFlags ConnectFlag
+	KeepAlive    uint16
 }
 
-func NewConnect() {
+func NewConnectMessage(connectFlags ConnectFlags, keepAlive uint16) *Connect {
 
+	return &Connect{
+		FixedHeader: NewFixedHeader(
+			Connect,
+			false, 0, false,
+			0, // TODO:check
+		),
+		ProtoName:    "MQTT",
+		ProtoLevel:   4,
+		ConnectFlags: connectFlags,
+		KeepAlive:    keepAlive,
+	}
 }
