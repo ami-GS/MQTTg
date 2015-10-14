@@ -39,6 +39,12 @@ func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length 
 	}
 }
 
+type VariableHeader interface {
+	VHeaderParse(data []byte)
+	VHeaderWire() ([]byte, error)
+	VHeaderString() string
+}
+
 type Message interface {
 	Parse(data []byte)
 	GetWire() ([]byte, error)
