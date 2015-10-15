@@ -116,3 +116,23 @@ func NewConnackMessage(flag bool, code ConnectReturnCode) *ConnackMessage {
 		ReturnCode:         code,
 	}
 }
+
+type PulishMessage struct {
+	*FixedHeader
+	TopicName string
+	PacketID  uint16
+	Payload   []uint8
+}
+
+func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16, payload []uint8) *PublishMessage {
+	return &PublishMessage{
+		FixedHeader: NewFixedHeader(
+			Publish,
+			dub, qos, retain,
+			0, // TODO:check
+		),
+		TopicName: topic,
+		PacketID:  id,
+		Payload:   payload,
+	}
+}
