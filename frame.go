@@ -73,9 +73,9 @@ type ConnectMessage struct {
 	KeepAlive    uint16
 }
 
-func NewConnectMessage(connectFlags ConnectFlags, keepAlive uint16) *Connect {
+func NewConnectMessage(connectFlags ConnectFlags, keepAlive uint16) *ConnectMessage {
 
-	return &Connect{
+	return &ConnectMessage{
 		FixedHeader: NewFixedHeader(
 			Connect,
 			false, 0, false,
