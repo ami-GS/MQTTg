@@ -87,3 +87,14 @@ func NewConnectMessage(connectFlags ConnectFlags, keepAlive uint16) *ConnectMess
 		KeepAlive:    keepAlive,
 	}
 }
+
+type ConnectReturnCode uint8
+
+const (
+	Accepted ConnectReturnCode = iota
+	UnacceptableProtocolVersion
+	IdentifierRejected
+	ServerUnavailable
+	BadUserNameOrPassword
+	NotAuthorized
+)
