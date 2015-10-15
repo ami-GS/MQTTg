@@ -98,3 +98,21 @@ const (
 	BadUserNameOrPassword
 	NotAuthorized
 )
+
+type ConnackMessage struct {
+	*FixedHeader
+	SessionPresentFlag bool
+	ReturnCode         ConnectReturnCode
+}
+
+func NewConnackMessage(flag bool, code ConnectReturnCode) *ConnackMessage {
+	return &ConnackMessage{
+		FixedHeader: NewFixedHeader(
+			Connack,
+			false, 0, false,
+			0, // TODO:check
+		),
+		SessionPresentFlag: flag,
+		ReturnCode:         code,
+	}
+}
