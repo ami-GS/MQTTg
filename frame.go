@@ -136,3 +136,97 @@ func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16
 		Payload:   payload,
 	}
 }
+
+type PubackMessage struct {
+	*FixedHeader
+	PacketID uint16
+}
+
+func NewPubackMessage(id uint16) *PubackMessage {
+	return &PubackMessage{
+		FixedHeader: NewFixedHeader(
+			Puback,
+			false, 0, false,
+			0, // TODO:check
+		),
+		PacketID: id,
+	}
+}
+
+type PubrecMessage struct {
+	*FixedHeader
+	PacketID uint16
+}
+
+func NewPubrecMessage(id uint16) *PubrecMessage {
+	return &PubrecMessage{
+		FixedHeader: NewFixedHeader(
+			Pubrec,
+			false, 0, false,
+			0, // TODO:check
+		),
+		PacketID: id,
+	}
+}
+
+type PubrelMessage struct {
+	*FixedHeader
+	PacketID uint16
+}
+
+func NewPubrelMessage(id uint16) *PubrelMessage {
+	return &PubrelMessage{
+		FixedHeader: NewFixedHeader(
+			Pubrel,
+			false, 0, false,
+			0, // TODO:check
+		),
+		PacketID: id,
+	}
+}
+
+type PubcompMessage struct {
+	*FixedHeader
+	PacketID uint16
+}
+
+func NewPubcompMessage(id uint16) *PubcompMessage {
+	return &PubcompMessage{
+		FixedHeader: NewFixedHeader(
+			Pubcomp,
+			false, 0, false,
+			0, // TODO:check
+		),
+		PacketID: id,
+	}
+}
+
+type SubscribeTopic struct {
+	Topic []uint8
+	QoS   uint8
+}
+
+func NewSubscribeTopic(topic []uint8, qos uint8) *SubscribeTopic {
+	return &SubscribeTopic{
+		Topic: topic,
+		QoS:   qos,
+	}
+}
+
+type SubscribeMessage struct {
+	*FixedHeader
+	PacketID        uint16
+	SubscribeTopics []SubscribeTopic
+}
+
+func NewSubscribeMessage(id uint16, topics []SubscribeTopic) *SubscribeMessage {
+	return &SubscribeMessage{
+		FixedHeader: NewFixedHeader(
+			Subscribe,
+			false, 0, false,
+			0, // TODO:check
+		),
+		PacketID:        id,
+		SubscribeTopics: topics,
+	}
+}
