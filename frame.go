@@ -230,3 +230,106 @@ func NewSubscribeMessage(id uint16, topics []SubscribeTopic) *SubscribeMessage {
 		SubscribeTopics: topics,
 	}
 }
+
+type SubscribeReturnCode uint8
+
+const (
+	AckMaxQoS0 SubscribeReturnCode = iota
+	AckMaxQoS1
+	AckMaxQoS2
+	SubscribeFailure SubscribeReturnCode = 0x80
+)
+
+type SubackMessage struct {
+	*FixedHeader
+	PacketID    uint16
+	ReturnCodes []SubscribeReturnCode
+}
+
+func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
+	return &SubackMessage{
+		FixedHeader: NewFixedHeader(
+			Suback,
+			false, 0, false,
+			0, // TODO:check
+		),
+		PacketID:    id,
+		ReturnCodes: codes,
+	}
+}
+
+type UnsubscribeMessage struct {
+	*FixedHeader
+	PacketID uint16
+	Topics   [][]uint8
+}
+
+func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
+	return &UnsubscribeMessage{
+		FixedHeader: NewFixedHeader(
+			Unsubscribe,
+			false, 0, false,
+			0, // TODO:check
+		),
+		PacketID: id,
+		Topics:   topics,
+	}
+}
+
+type UnsubackMessage struct {
+	*FixedHeader
+	PacketID uint16
+}
+
+func NewUnsubackMessage(id uint16) *UnsubackMessage {
+	return &UnsubackMessage{
+		FixedHeader: NewFixedHeader(
+			Unsuback,
+			false, 0, false,
+			0, // TODO:check
+		),
+		PacketID: id,
+	}
+}
+
+type PingreqMessage struct {
+	*FixedHeader
+}
+
+func NewPingreqMessage() *PingreqMessage {
+	return &PingreqMessage{
+		FixedHeader: NewFixedHeader(
+			Pingreq,
+			false, 0, false,
+			0, // TODO:check
+		),
+	}
+}
+
+type PingrespMessage struct {
+	*FixedHeader
+}
+
+func NewPingrespMessage() *PingrespMessage {
+	return &PingrespMessage{
+		FixedHeader: NewFixedHeader(
+			Pingresp,
+			false, 0, false,
+			0, // TODO:check
+		),
+	}
+}
+
+type DisconnectMessage struct {
+	*FixedHeader
+}
+
+func NewDisconnectMessage() *DisconnectMessage {
+	return &DisconnectMessage{
+		FixedHeader: NewFixedHeader(
+			Disconnect,
+			false, 0, false,
+			0, // TODO:check
+		),
+	}
+}
