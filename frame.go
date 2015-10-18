@@ -39,6 +39,21 @@ func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length 
 	}
 }
 
+func (self *FixedHeader) GetWire() (wire []uint8) {
+	wire = new([]uint8, 2)
+	wire[0] = uint8(self.Type)
+	if self.Dub {
+		wire[0] |= 0x08
+	}
+	self.wire[0] |= (self.QoS << 1)
+	if self.Retain {
+		wire[0] |= 0x01
+	}
+	wire[1] = self.RemainLength
+
+	return
+}
+
 type VariableHeader interface {
 	VHeaderParse(data []byte)
 	VHeaderWire() ([]byte, error)
