@@ -89,7 +89,6 @@ type ConnectMessage struct {
 }
 
 func NewConnectMessage(connectFlags ConnectFlags, keepAlive uint16) *ConnectMessage {
-
 	return &ConnectMessage{
 		FixedHeader: NewFixedHeader(
 			Connect,
@@ -101,6 +100,25 @@ func NewConnectMessage(connectFlags ConnectFlags, keepAlive uint16) *ConnectMess
 		ConnectFlags: connectFlags,
 		KeepAlive:    keepAlive,
 	}
+}
+
+func (self *ConnectMessage) GetWire() (wire []uint8) {
+	var protoLen uint16 = len(self.ProtoName)
+	wire = new([]uint8, protoLen+6)
+	for i := 0; i < 2; i++ {
+		wire[i] = uint8(protoLen >> ((1 - i) * 8))
+	}
+
+	for i := 0; i < protoLen; i++ {
+		wire[2+i] = uint8(self.ProtoName[i])
+	}
+	wire[2+protoLen] = self.ProtoLevel
+	wire[3+protoLen] = uint8(self.ConnectFlags)
+	for i := 0; i < 2; i++ {
+		wire[4+i] = uint8(self.KeepAlive >> ((1 - i) * 8))
+	}
+
+	return
 }
 
 type ConnectReturnCode uint8
