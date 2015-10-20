@@ -21,6 +21,28 @@ const (
 	Reserved_2
 )
 
+func (self MessageType) String() string {
+	types := []string{
+		"Reserved_1",
+		"Connect",
+		"Connack",
+		"Publish",
+		"Puback",
+		"Pubrec",
+		"Pubrel",
+		"Pubcomp",
+		"Subscribe",
+		"Suback",
+		"Unsubscribe",
+		"Unsuback",
+		"Pingreq",
+		"Pingresp",
+		"Disconnect",
+		"Reserved_2",
+	}
+	return types[int(self)]
+}
+
 type FixedHeader struct {
 	Type         MessageType
 	Dup          bool
@@ -80,6 +102,32 @@ const (
 	UserName     ConnectFlag = 0x80
 )
 
+func (self ConnectFlag) String() (s string) {
+	if self&CleanSession == CleanSession {
+		s += "CleanSession\n"
+	}
+	if self&WillFlag == WillFlag {
+		s += "WillFlag\n"
+	}
+	switch self & WillQoS_3 {
+	case WillQoS_0:
+		s += "WillQoS_0\n"
+	case WillQoS_1:
+		s += "WillQoS_1\n"
+	case WillQoS_2:
+		s += "WillQoS_2\n"
+	case WillQoS_3:
+		s += "WillQoS_3\n"
+	}
+	if self&Password == Password {
+		s += "Password\n"
+	}
+	if self&UserName == UserName {
+		s += "UserName\n"
+	}
+	return s
+}
+
 type ConnectMessage struct {
 	*FixedHeader
 	ProtoName    string
@@ -131,6 +179,18 @@ const (
 	BadUserNameOrPassword
 	NotAuthorized
 )
+
+func (self ConnectReturnCode) String() string {
+	codes := []string{
+		"Accepted",
+		"UnacceptableProtocolVersion",
+		"IdentifierRejected",
+		"ServerUnavailable",
+		"BadUserNameOrPassword",
+		"NotAuthorized",
+	}
+	return codes[int(self)]
+}
 
 type ConnackMessage struct {
 	*FixedHeader
@@ -272,6 +332,16 @@ const (
 	AckMaxQoS2
 	SubscribeFailure SubscribeReturnCode = 0x80
 )
+
+func (self SubscribeReturnCode) String() string {
+	codes := map[SubscribeReturnCode]string{
+		0x00: "AckMaxQoS0",
+		0x01: "AckMaxQoS1",
+		0x02: "AckMaxQoS2",
+		0x80: "SubscribeFailure",
+	}
+	return codes[self]
+}
 
 type SubackMessage struct {
 	*FixedHeader
