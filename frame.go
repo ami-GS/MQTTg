@@ -210,6 +210,16 @@ func NewConnackMessage(flag bool, code ConnectReturnCode) *ConnackMessage {
 	}
 }
 
+func (self *ConnackMessage) GetWire() (wire []byte) {
+	wire = new([]byte, 2)
+	if self.SessionPresentFlag {
+		wire[0] = 0x01
+	}
+	wire[1] = byte(self.ReturnCode)
+
+	return
+}
+
 type PulishMessage struct {
 	*FixedHeader
 	TopicName string
@@ -230,6 +240,25 @@ func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16
 	}
 }
 
+func (self *PublishMessage) GetWire() (wire []byte) {
+	topicLen := len(self.TopicName)
+	wire = new([]byte, 4+topicLen+len(self.Payload))
+	for i := 0; i < 2; i++ {
+		wire[i] = byte(topicLen >> ((1 - i) * 8))
+	}
+	for i, v := range []byte(TopicName) {
+		wire[2+i] = v
+	}
+	for i := 0; i < 2; i++ {
+		wire[2+topicLen+i] = byte(self.PacketID >> ((1 - i) * 8))
+	}
+	for i, v := range self.Payload {
+		wire[4+topicLen+i] = v
+	}
+
+	return
+}
+
 type PubackMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -244,6 +273,15 @@ func NewPubackMessage(id uint16) *PubackMessage {
 		),
 		PacketID: id,
 	}
+}
+
+func (self *PubackMessage) GetWire() (wire []byte) {
+	wire = new([]byte, 2)
+	for i := 0; i < 2; i++ {
+		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
+	}
+
+	return
 }
 
 type PubrecMessage struct {
@@ -262,6 +300,15 @@ func NewPubrecMessage(id uint16) *PubrecMessage {
 	}
 }
 
+func (self *PubrecMessage) GetWire() (wire []byte) {
+	wire = new([]byte, 2)
+	for i := 0; i < 2; i++ {
+		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
+	}
+
+	return
+}
+
 type PubrelMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -278,6 +325,15 @@ func NewPubrelMessage(id uint16) *PubrelMessage {
 	}
 }
 
+func (self *PubrelMessage) GetWire() (wire []byte) {
+	wire = new([]byte, 2)
+	for i := 0; i < 2; i++ {
+		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
+	}
+
+	return
+}
+
 type PubcompMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -292,6 +348,15 @@ func NewPubcompMessage(id uint16) *PubcompMessage {
 		),
 		PacketID: id,
 	}
+}
+
+func (self *PubcompMessage) GetWire() (wire []byte) {
+	wire = new([]byte, 2)
+	for i := 0; i < 2; i++ {
+		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
+	}
+
+	return
 }
 
 type SubscribeTopic struct {
