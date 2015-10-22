@@ -62,7 +62,7 @@ func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length 
 }
 
 func (self *FixedHeader) GetWire() (wire []uint8) {
-	wire = new([]uint8, 2)
+	wire = make([]uint8, 2)
 	wire[0] = uint8(self.Type)
 	if self.Dub {
 		wire[0] |= 0x08
@@ -152,7 +152,7 @@ func NewConnectMessage(connectFlags ConnectFlags, keepAlive uint16) *ConnectMess
 
 func (self *ConnectMessage) GetWire() (wire []uint8) {
 	var protoLen uint16 = len(self.ProtoName)
-	wire = new([]uint8, protoLen+6)
+	wire = make([]uint8, protoLen+6)
 	for i := 0; i < 2; i++ {
 		wire[i] = uint8(protoLen >> ((1 - i) * 8))
 	}
@@ -211,7 +211,7 @@ func NewConnackMessage(flag bool, code ConnectReturnCode) *ConnackMessage {
 }
 
 func (self *ConnackMessage) GetWire() (wire []byte) {
-	wire = new([]byte, 2)
+	wire = make([]byte, 2)
 	if self.SessionPresentFlag {
 		wire[0] = 0x01
 	}
@@ -242,7 +242,7 @@ func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16
 
 func (self *PublishMessage) GetWire() (wire []byte) {
 	topicLen := len(self.TopicName)
-	wire = new([]byte, 4+topicLen+len(self.Payload))
+	wire = make([]byte, 4+topicLen+len(self.Payload))
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(topicLen >> ((1 - i) * 8))
 	}
@@ -276,7 +276,7 @@ func NewPubackMessage(id uint16) *PubackMessage {
 }
 
 func (self *PubackMessage) GetWire() (wire []byte) {
-	wire = new([]byte, 2)
+	wire = make([]byte, 2)
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
 	}
@@ -301,7 +301,7 @@ func NewPubrecMessage(id uint16) *PubrecMessage {
 }
 
 func (self *PubrecMessage) GetWire() (wire []byte) {
-	wire = new([]byte, 2)
+	wire = make([]byte, 2)
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
 	}
@@ -326,7 +326,7 @@ func NewPubrelMessage(id uint16) *PubrelMessage {
 }
 
 func (self *PubrelMessage) GetWire() (wire []byte) {
-	wire = new([]byte, 2)
+	wire = make([]byte, 2)
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
 	}
@@ -351,7 +351,7 @@ func NewPubcompMessage(id uint16) *PubcompMessage {
 }
 
 func (self *PubcompMessage) GetWire() (wire []byte) {
-	wire = new([]byte, 2)
+	wire = make([]byte, 2)
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
 	}
@@ -394,7 +394,7 @@ func (self *SubscribeMessage) GetWire() (wire []byte) {
 	for _, v := range self.SubscribeTopics {
 		topicsLen += len(v.Topic)
 	}
-	wire = new([]byte, 2+3*len(self.SubscribeTopics)+topicsLen)
+	wire = make([]byte, 2+3*len(self.SubscribeTopics)+topicsLen)
 
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
@@ -455,7 +455,7 @@ func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
 }
 
 func (self *SubackMessage) GetWire() (wire []byte) {
-	wire = new([]byte, 2+len(self.ReturnCodes))
+	wire = make([]byte, 2+len(self.ReturnCodes))
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
 	}
@@ -491,7 +491,7 @@ func (self *UnsubscribeMessage) GetWire() (wire []byte) {
 		topicLens[i] = l
 		allLen += l
 	}
-	wire = new([]byte, 2+2*len(self.Topics)+allLen)
+	wire = make([]byte, 2+2*len(self.Topics)+allLen)
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
 	}
@@ -529,7 +529,7 @@ func NewUnsubackMessage(id uint16) *UnsubackMessage {
 }
 
 func (self *UnsubackMessage) GetWire() (wire []byte) {
-	wire = new([]byte, 2)
+	wire = make([]byte, 2)
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
 	}
