@@ -389,6 +389,34 @@ func NewSubscribeMessage(id uint16, topics []SubscribeTopic) *SubscribeMessage {
 	}
 }
 
+func (self *SubscribeMessage) GetWire() (wire []byte) {
+	topicsLen := 0
+	for _, v := range self.SubscribeTopics {
+		topicsLen += len(v.Topic)
+	}
+	wire = new([]byte, 2+3*len(self.SubscribeTopics)+topicsLen)
+
+	for i := 0; i < 2; i++ {
+		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
+	}
+	cursor := 2
+	for i, v := range self.SubscribeTopics {
+		topicLen = len(v.Topic)
+		for j := 0; j < 2; j++ {
+			wire[cursor+j] = byte(topicLen >> ((1 - j) * 8))
+		}
+		cursor += 2
+
+		for j, b := range []byte(v.Topic) {
+			wire[cursor+2+j] = b
+		}
+		cursor += topicLen
+		wire[cursor] = v.QoS
+	}
+
+	return
+}
+
 type SubscribeReturnCode uint8
 
 const (
@@ -426,6 +454,17 @@ func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
 	}
 }
 
+func (self *SubackMessage) GetWire() (wire []byte) {
+	wire = new([]byte, 2+len(self.ReturnCodes))
+	for i := 0; i < 2; i++ {
+		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
+	}
+	for i, v := range self.ReturnCodes {
+		wire[2+i] = byte(v)
+	}
+	return
+}
+
 type UnsubscribeMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -444,6 +483,35 @@ func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
 	}
 }
 
+func (self *UnsubscribeMessage) GetWire() (wire []byte) {
+	var topicLens [len(self.Topics)]byte
+	allLen := 0
+	for i, v := range self.Topics {
+		l := len(v)
+		topicLens[i] = l
+		allLen += l
+	}
+	wire = new([]byte, 2+2*len(self.Topics)+allLen)
+	for i := 0; i < 2; i++ {
+		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
+	}
+
+	cursor := 2
+	for i, v := range self.Topics {
+		for j := 0; j < 2; j++ {
+			wire[cursor+j] = byte(self.PacketID >> ((1 - j) * 8))
+		}
+		cursor += 2
+
+		for j, b := range v {
+			wire[cursor+j] = b
+		}
+		cursor += topicLens[i]
+	}
+
+	return
+}
+
 type UnsubackMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -460,6 +528,15 @@ func NewUnsubackMessage(id uint16) *UnsubackMessage {
 	}
 }
 
+func (self *UnsubackMessage) GetWire() (wire []byte) {
+	wire = new([]byte, 2)
+	for i := 0; i < 2; i++ {
+		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
+	}
+
+	return
+}
+
 type PingreqMessage struct {
 	*FixedHeader
 }
@@ -472,6 +549,10 @@ func NewPingreqMessage() *PingreqMessage {
 			0, // TODO:check
 		),
 	}
+}
+
+func (self *PingreqMessage) GetWire() (wire []byte) {
+	return
 }
 
 type PingrespMessage struct {
@@ -488,6 +569,10 @@ func NewPingrespMessage() *PingrespMessage {
 	}
 }
 
+func (self *PingrespMessage) GetWire() (wire []byte) {
+	return
+}
+
 type DisconnectMessage struct {
 	*FixedHeader
 }
@@ -500,4 +585,8 @@ func NewDisconnectMessage() *DisconnectMessage {
 			0, // TODO:check
 		),
 	}
+}
+
+func (self *DisconnectMessage) GetWire() (wire []byte) {
+	return
 }
