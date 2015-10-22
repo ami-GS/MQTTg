@@ -64,10 +64,10 @@ func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length 
 func (self *FixedHeader) GetWire() (wire []uint8) {
 	wire = make([]uint8, 2)
 	wire[0] = uint8(self.Type)
-	if self.Dub {
+	if self.Dup {
 		wire[0] |= 0x08
 	}
-	self.wire[0] |= (self.QoS << 1)
+	wire[0] |= (self.QoS << 1)
 	if self.Retain {
 		wire[0] |= 0x01
 	}
@@ -136,7 +136,7 @@ type ConnectMessage struct {
 	KeepAlive    uint16
 }
 
-func NewConnectMessage(connectFlags ConnectFlags, keepAlive uint16) *ConnectMessage {
+func NewConnectMessage(connectFlags ConnectFlag, keepAlive uint16) *ConnectMessage {
 	return &ConnectMessage{
 		FixedHeader: NewFixedHeader(
 			Connect,
@@ -151,7 +151,7 @@ func NewConnectMessage(connectFlags ConnectFlags, keepAlive uint16) *ConnectMess
 }
 
 func (self *ConnectMessage) GetWire() (wire []uint8) {
-	var protoLen uint16 = len(self.ProtoName)
+	protoLen := len(self.ProtoName)
 	wire = make([]uint8, protoLen+6)
 	for i := 0; i < 2; i++ {
 		wire[i] = uint8(protoLen >> ((1 - i) * 8))
@@ -220,7 +220,7 @@ func (self *ConnackMessage) GetWire() (wire []byte) {
 	return
 }
 
-type PulishMessage struct {
+type PublishMessage struct {
 	*FixedHeader
 	TopicName string
 	PacketID  uint16
@@ -246,7 +246,7 @@ func (self *PublishMessage) GetWire() (wire []byte) {
 	for i := 0; i < 2; i++ {
 		wire[i] = byte(topicLen >> ((1 - i) * 8))
 	}
-	for i, v := range []byte(TopicName) {
+	for i, v := range []byte(self.TopicName) {
 		wire[2+i] = v
 	}
 	for i := 0; i < 2; i++ {
@@ -400,8 +400,8 @@ func (self *SubscribeMessage) GetWire() (wire []byte) {
 		wire[i] = byte(self.PacketID >> ((1 - i) * 8))
 	}
 	cursor := 2
-	for i, v := range self.SubscribeTopics {
-		topicLen = len(v.Topic)
+	for _, v := range self.SubscribeTopics {
+		topicLen := len(v.Topic)
 		for j := 0; j < 2; j++ {
 			wire[cursor+j] = byte(topicLen >> ((1 - j) * 8))
 		}
@@ -484,12 +484,9 @@ func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
 }
 
 func (self *UnsubscribeMessage) GetWire() (wire []byte) {
-	var topicLens [len(self.Topics)]byte
 	allLen := 0
-	for i, v := range self.Topics {
-		l := len(v)
-		topicLens[i] = l
-		allLen += l
+	for _, v := range self.Topics {
+		allLen += len(v)
 	}
 	wire = make([]byte, 2+2*len(self.Topics)+allLen)
 	for i := 0; i < 2; i++ {
@@ -497,7 +494,7 @@ func (self *UnsubscribeMessage) GetWire() (wire []byte) {
 	}
 
 	cursor := 2
-	for i, v := range self.Topics {
+	for _, v := range self.Topics {
 		for j := 0; j < 2; j++ {
 			wire[cursor+j] = byte(self.PacketID >> ((1 - j) * 8))
 		}
@@ -506,7 +503,7 @@ func (self *UnsubscribeMessage) GetWire() (wire []byte) {
 		for j, b := range v {
 			wire[cursor+j] = b
 		}
-		cursor += topicLens[i]
+		cursor += len(v)
 	}
 
 	return
