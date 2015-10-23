@@ -82,8 +82,24 @@ type VariableHeader interface {
 	VHeaderString() string
 }
 
+var ParseMessage map[MessageType]interface{} = map[MessageType]interface{}{
+	Connect:     ParseConnectMessage,
+	Connack:     ParseConnackMessage,
+	Publish:     ParsePublishMessage,
+	Puback:      ParsePubackMessage,
+	Pubrec:      ParsePubrecMessage,
+	Pubrel:      ParsePubrelMessage,
+	Pubcomp:     ParsePubcompMessage,
+	Subscribe:   ParseSubscribeMessage,
+	Suback:      ParseSubackMessage,
+	Unsubscribe: ParseUnsubscribeMessage,
+	Unsuback:    ParseUnsubackMessage,
+	Pingreq:     ParsePingreqMessage,
+	Pingresp:    ParsePingrespMessage,
+	Disconnect:  ParseDisconnectMessage,
+}
+
 type Message interface {
-	Parse(data []byte)
 	GetWire() ([]byte, error)
 	String() string
 }
@@ -169,6 +185,10 @@ func (self *ConnectMessage) GetWire() (wire []uint8) {
 	return
 }
 
+func ParseConnectMessage(wire []byte) (m *ConnectMessage) {
+	return
+}
+
 type ConnectReturnCode uint8
 
 const (
@@ -220,6 +240,10 @@ func (self *ConnackMessage) GetWire() (wire []byte) {
 	return
 }
 
+func ParseConnackMessage(wire []byte) (m *ConnackMessage) {
+	return
+}
+
 type PublishMessage struct {
 	*FixedHeader
 	TopicName string
@@ -259,6 +283,10 @@ func (self *PublishMessage) GetWire() (wire []byte) {
 	return
 }
 
+func ParsePublishMessage(wire []byte) (m *PublishMessage) {
+	return
+}
+
 type PubackMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -281,6 +309,10 @@ func (self *PubackMessage) GetWire() (wire []byte) {
 		wire[i] = byte(self.PacketID >> byte((1-i)*8))
 	}
 
+	return
+}
+
+func ParsePubackMessage(wire []byte) (m *PubackMessage) {
 	return
 }
 
@@ -309,6 +341,10 @@ func (self *PubrecMessage) GetWire() (wire []byte) {
 	return
 }
 
+func ParsePubrecMessage(wire []byte) (m *PubrecMessage) {
+	return
+}
+
 type PubrelMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -334,6 +370,10 @@ func (self *PubrelMessage) GetWire() (wire []byte) {
 	return
 }
 
+func ParsePubrelMessage(wire []byte) (m *PubrelMessage) {
+	return
+}
+
 type PubcompMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -356,6 +396,10 @@ func (self *PubcompMessage) GetWire() (wire []byte) {
 		wire[i] = byte(self.PacketID >> byte((1-i)*8))
 	}
 
+	return
+}
+
+func ParsePubcompMessage(wire []byte) (m *PubcompMessage) {
 	return
 }
 
@@ -417,6 +461,10 @@ func (self *SubscribeMessage) GetWire() (wire []byte) {
 	return
 }
 
+func ParseSubscribeMessage(wire []byte) (m *SubscribeMessage) {
+	return
+}
+
 type SubscribeReturnCode uint8
 
 const (
@@ -465,6 +513,10 @@ func (self *SubackMessage) GetWire() (wire []byte) {
 	return
 }
 
+func ParseSubackMessage(wire []byte) (m *SubackMessage) {
+	return
+}
+
 type UnsubscribeMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -509,6 +561,10 @@ func (self *UnsubscribeMessage) GetWire() (wire []byte) {
 	return
 }
 
+func ParseUnsubscribeMessage(wire []byte) (m *UnsubscribeMessage) {
+	return
+}
+
 type UnsubackMessage struct {
 	*FixedHeader
 	PacketID uint16
@@ -534,6 +590,10 @@ func (self *UnsubackMessage) GetWire() (wire []byte) {
 	return
 }
 
+func ParseUnsubackMessage(wire []byte) (m *UnsubackMessage) {
+	return
+}
+
 type PingreqMessage struct {
 	*FixedHeader
 }
@@ -549,6 +609,10 @@ func NewPingreqMessage() *PingreqMessage {
 }
 
 func (self *PingreqMessage) GetWire() (wire []byte) {
+	return
+}
+
+func ParsePingreqMessage(wire []byte) (m *PingreqMessage) {
 	return
 }
 
@@ -570,6 +634,10 @@ func (self *PingrespMessage) GetWire() (wire []byte) {
 	return
 }
 
+func ParsePingrespMessage(wire []byte) (m *PingrespMessage) {
+	return
+}
+
 type DisconnectMessage struct {
 	*FixedHeader
 }
@@ -585,5 +653,9 @@ func NewDisconnectMessage() *DisconnectMessage {
 }
 
 func (self *DisconnectMessage) GetWire() (wire []byte) {
+	return
+}
+
+func ParseDisconnectMessage(wire []byte) (m *DisconnectMessage) {
 	return
 }
