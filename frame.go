@@ -76,6 +76,25 @@ func (self *FixedHeader) GetWire() (wire []uint8) {
 	return
 }
 
+func ParseFixedHeader(wire []byte) (h *FixedHeader) {
+	var dup, retain bool
+	var qos uint8
+	mType := MessageType(wire[0] >> 4)
+	if mType == Publish {
+		if wire[0]&0x08 > 0 {
+			dup = true
+		}
+		qos = (wire[0] >> 1) & 0x03
+
+		if wire[0] & 0x01 {
+			retain = true
+		}
+	}
+	h = NewFixedHeader(mType, dup, qos, retain, wire[1])
+
+	return
+}
+
 type VariableHeader interface {
 	VHeaderParse(data []byte)
 	VHeaderWire() ([]byte, error)
