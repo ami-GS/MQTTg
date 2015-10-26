@@ -560,6 +560,11 @@ func (self *SubackMessage) GetWire() (wire []byte) {
 }
 
 func ParseSubackMessage(wire []byte) (m *SubackMessage) {
+	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	for _, v := range wire[2:] {
+		m.ReturnCodes = append(m.ReturnCodes, SubscribeReturnCode(v))
+	}
+
 	return
 }
 
@@ -608,6 +613,13 @@ func (self *UnsubscribeMessage) GetWire() (wire []byte) {
 }
 
 func ParseUnsubscribeMessage(wire []byte) (m *UnsubscribeMessage) {
+	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	allLen := len(wire)
+	for i := 2; i < allLen; {
+		topicLen := uint16(wire[i]<<8) + wire[i+1]
+		m.Topics = append(m.Topics, wire[i+2:i+2+topicLen])
+		i += 2 + topicLen
+	}
 	return
 }
 
@@ -637,6 +649,7 @@ func (self *UnsubackMessage) GetWire() (wire []byte) {
 }
 
 func ParseUnsubackMessage(wire []byte) (m *UnsubackMessage) {
+	m.PacketID = uint16(wire[0]<<8) + wire[1]
 	return
 }
 
