@@ -81,12 +81,12 @@ func ParseFixedHeader(wire []byte) (h *FixedHeader) {
 	var qos uint8
 	mType := MessageType(wire[0] >> 4)
 	if mType == Publish {
-		if wire[0]&0x08 > 0 {
+		if wire[0]&0x08 == 0x08 {
 			dup = true
 		}
 		qos = (wire[0] >> 1) & 0x03
 
-		if wire[0] & 0x01 {
+		if wire[0]&0x01 == 0x01 {
 			retain = true
 		}
 	}
@@ -504,7 +504,7 @@ func ParseSubscribeMessage(wire []byte) (m *SubscribeMessage) {
 		topicLen := uint16(wire[i]<<8) + wire[i+1]
 		topic := wire[i+2 : i+2+topicLen]
 		m.SubscribeTopics = append(m.SubscribeTopics,
-			NewSubscribeTopic(topic, wire[i+2+topicLen]))
+			*NewSubscribeTopic(topic, wire[i+2+topicLen])) // check
 		i += 3 + topicLen
 	}
 
