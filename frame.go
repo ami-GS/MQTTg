@@ -192,18 +192,14 @@ func NewConnectMessage(connectFlags ConnectFlag, keepAlive uint16) *ConnectMessa
 func (self *ConnectMessage) GetWire() (wire []uint8) {
 	protoLen := len(self.ProtoName)
 	wire = make([]uint8, protoLen+6)
-	for i := 0; i < 2; i++ {
-		wire[i] = uint8(protoLen >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, uint16(protoLen))
 
 	for i := 0; i < protoLen; i++ {
 		wire[2+i] = uint8(self.ProtoName[i])
 	}
 	wire[2+protoLen] = self.ProtoLevel
 	wire[3+protoLen] = uint8(self.ConnectFlags)
-	for i := 0; i < 2; i++ {
-		wire[4+i] = uint8(self.KeepAlive >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire[4+protoLen:], self.KeepAlive)
 
 	return
 }
@@ -294,15 +290,11 @@ func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16
 func (self *PublishMessage) GetWire() (wire []byte) {
 	topicLen := len(self.TopicName)
 	wire = make([]byte, 4+topicLen+len(self.Payload))
-	for i := 0; i < 2; i++ {
-		wire[i] = byte(topicLen >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, uint16(topicLen))
 	for i, v := range []byte(self.TopicName) {
 		wire[2+i] = v
 	}
-	for i := 0; i < 2; i++ {
-		wire[2+topicLen+i] = byte(self.PacketID >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire[2+topicLen:], self.PacketID)
 	for i, v := range self.Payload {
 		wire[4+topicLen+i] = v
 	}
@@ -337,9 +329,7 @@ func NewPubackMessage(id uint16) *PubackMessage {
 
 func (self *PubackMessage) GetWire() (wire []byte) {
 	wire = make([]byte, 2)
-	for i := 0; i < 2; i++ {
-		wire[i] = byte(self.PacketID >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, self.PacketID)
 
 	return
 }
@@ -368,9 +358,7 @@ func NewPubrecMessage(id uint16) *PubrecMessage {
 
 func (self *PubrecMessage) GetWire() (wire []byte) {
 	wire = make([]byte, 2)
-	for i := 0; i < 2; i++ {
-		wire[i] = byte(self.PacketID >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, self.PacketID)
 
 	return
 }
@@ -399,9 +387,7 @@ func NewPubrelMessage(id uint16) *PubrelMessage {
 
 func (self *PubrelMessage) GetWire() (wire []byte) {
 	wire = make([]byte, 2)
-	for i := 0; i < 2; i++ {
-		wire[i] = byte(self.PacketID >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, self.PacketID)
 
 	return
 }
@@ -430,9 +416,7 @@ func NewPubcompMessage(id uint16) *PubcompMessage {
 
 func (self *PubcompMessage) GetWire() (wire []byte) {
 	wire = make([]byte, 2)
-	for i := 0; i < 2; i++ {
-		wire[i] = byte(self.PacketID >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, self.PacketID)
 
 	return
 }
@@ -479,16 +463,11 @@ func (self *SubscribeMessage) GetWire() (wire []byte) {
 		topicsLen += len(v.Topic)
 	}
 	wire = make([]byte, 2+3*len(self.SubscribeTopics)+topicsLen)
-
-	for i := 0; i < 2; i++ {
-		wire[i] = byte(self.PacketID >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, self.PacketID)
 	cursor := 2
 	for _, v := range self.SubscribeTopics {
 		topicLen := len(v.Topic)
-		for j := 0; j < 2; j++ {
-			wire[cursor+j] = byte(topicLen >> byte((1-j)*8))
-		}
+		binary.BigEndian.PutUint16(wire[cursor:], uint16(topicLen))
 		cursor += 2
 
 		for j, b := range []byte(v.Topic) {
@@ -554,9 +533,7 @@ func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
 
 func (self *SubackMessage) GetWire() (wire []byte) {
 	wire = make([]byte, 2+len(self.ReturnCodes))
-	for i := 0; i < 2; i++ {
-		wire[i] = byte(self.PacketID >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, self.PacketID)
 	for i, v := range self.ReturnCodes {
 		wire[2+i] = byte(v)
 	}
@@ -596,15 +573,11 @@ func (self *UnsubscribeMessage) GetWire() (wire []byte) {
 		allLen += len(v)
 	}
 	wire = make([]byte, 2+2*len(self.Topics)+allLen)
-	for i := 0; i < 2; i++ {
-		wire[i] = byte(self.PacketID >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, self.PacketID)
 
 	cursor := 2
 	for _, v := range self.Topics {
-		for j := 0; j < 2; j++ {
-			wire[cursor+j] = byte(self.PacketID >> byte((1-j)*8))
-		}
+		binary.BigEndian.PutUint16(wire, uint16(len(v)))
 		cursor += 2
 
 		for j, b := range v {
@@ -645,9 +618,7 @@ func NewUnsubackMessage(id uint16) *UnsubackMessage {
 
 func (self *UnsubackMessage) GetWire() (wire []byte) {
 	wire = make([]byte, 2)
-	for i := 0; i < 2; i++ {
-		wire[i] = byte(self.PacketID >> byte((1-i)*8))
-	}
+	binary.BigEndian.PutUint16(wire, self.PacketID)
 
 	return
 }
