@@ -1,5 +1,9 @@
 package MQTTg
 
+import (
+	"encoding/binary"
+)
+
 type MessageType uint8
 
 const (
@@ -309,7 +313,7 @@ func (self *PublishMessage) GetWire() (wire []byte) {
 func ParsePublishMessage(wire []byte) (m *PublishMessage) {
 	var topicLen uint16 = uint16((wire[0] << 8) + wire[1])
 	m.TopicName = string(wire[:topicLen])
-	m.PacketID = uint16(wire[topicLen]<<8) + wire[topicLen+1]
+	m.PacketID = binary.BigEndian.Uint16(wire[topicLen : topicLen+2])
 	m.Payload = wire[topicLen+1:]
 
 	return
@@ -341,7 +345,7 @@ func (self *PubackMessage) GetWire() (wire []byte) {
 }
 
 func ParsePubackMessage(wire []byte) (m *PubackMessage) {
-	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
 	return
 }
@@ -372,7 +376,7 @@ func (self *PubrecMessage) GetWire() (wire []byte) {
 }
 
 func ParsePubrecMessage(wire []byte) (m *PubrecMessage) {
-	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
 	return
 }
@@ -403,7 +407,7 @@ func (self *PubrelMessage) GetWire() (wire []byte) {
 }
 
 func ParsePubrelMessage(wire []byte) (m *PubrelMessage) {
-	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
 	return
 }
@@ -434,7 +438,7 @@ func (self *PubcompMessage) GetWire() (wire []byte) {
 }
 
 func ParsePubcompMessage(wire []byte) (m *PubcompMessage) {
-	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
 	return
 }
@@ -498,10 +502,10 @@ func (self *SubscribeMessage) GetWire() (wire []byte) {
 }
 
 func ParseSubscribeMessage(wire []byte) (m *SubscribeMessage) {
-	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	allLen := len(wire)
 	for i := 2; i < allLen; {
-		topicLen := uint16(wire[i]<<8) + wire[i+1]
+		topicLen := int(binary.BigEndian.Uint16(wire[i : i+2]))
 		topic := wire[i+2 : i+2+topicLen]
 		m.SubscribeTopics = append(m.SubscribeTopics,
 			*NewSubscribeTopic(topic, wire[i+2+topicLen])) // check
@@ -560,7 +564,7 @@ func (self *SubackMessage) GetWire() (wire []byte) {
 }
 
 func ParseSubackMessage(wire []byte) (m *SubackMessage) {
-	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	for _, v := range wire[2:] {
 		m.ReturnCodes = append(m.ReturnCodes, SubscribeReturnCode(v))
 	}
@@ -613,10 +617,10 @@ func (self *UnsubscribeMessage) GetWire() (wire []byte) {
 }
 
 func ParseUnsubscribeMessage(wire []byte) (m *UnsubscribeMessage) {
-	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	allLen := len(wire)
 	for i := 2; i < allLen; {
-		topicLen := uint16(wire[i]<<8) + wire[i+1]
+		topicLen := int(binary.BigEndian.Uint16(wire[i : i+2]))
 		m.Topics = append(m.Topics, wire[i+2:i+2+topicLen])
 		i += 2 + topicLen
 	}
@@ -649,7 +653,8 @@ func (self *UnsubackMessage) GetWire() (wire []byte) {
 }
 
 func ParseUnsubackMessage(wire []byte) (m *UnsubackMessage) {
-	m.PacketID = uint16(wire[0]<<8) + wire[1]
+	m.PacketID = binary.BigEndian.Uint16(wire[:2])
+
 	return
 }
 
