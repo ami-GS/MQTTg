@@ -175,18 +175,22 @@ type ConnectMessage struct {
 	KeepAlive    uint16
 }
 
+var ProtocolName = "MQTT"
+
 func NewConnectMessage(connectFlags ConnectFlag, keepAlive uint16) *ConnectMessage {
+	length := 6 + len(ProtocolName)
 	return &ConnectMessage{
 		FixedHeader: NewFixedHeader(
 			Connect,
 			false, 0, false,
-			0, // TODO:check
+			uint8(length),
 		),
-		ProtoName:    "MQTT",
+		ProtoName:    ProtocolName,
 		ProtoLevel:   4,
 		ConnectFlags: connectFlags,
 		KeepAlive:    keepAlive,
 	}
+	// TODO:consider about payload
 }
 
 func (self *ConnectMessage) GetWire() (wire []uint8) {
@@ -242,7 +246,7 @@ func NewConnackMessage(flag bool, code ConnectReturnCode) *ConnackMessage {
 		FixedHeader: NewFixedHeader(
 			Connack,
 			false, 0, false,
-			0, // TODO:check
+			2,
 		),
 		SessionPresentFlag: flag,
 		ReturnCode:         code,
@@ -275,11 +279,12 @@ type PublishMessage struct {
 }
 
 func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16, payload []uint8) *PublishMessage {
+	length := 4 + len(topic) + len(payload)
 	return &PublishMessage{
 		FixedHeader: NewFixedHeader(
 			Publish,
 			dub, qos, retain,
-			0, // TODO:check
+			uint8(length),
 		),
 		TopicName: topic,
 		PacketID:  id,
@@ -321,7 +326,7 @@ func NewPubackMessage(id uint16) *PubackMessage {
 		FixedHeader: NewFixedHeader(
 			Puback,
 			false, 0, false,
-			0, // TODO:check
+			2,
 		),
 		PacketID: id,
 	}
@@ -350,7 +355,7 @@ func NewPubrecMessage(id uint16) *PubrecMessage {
 		FixedHeader: NewFixedHeader(
 			Pubrec,
 			false, 0, false,
-			0, // TODO:check
+			2,
 		),
 		PacketID: id,
 	}
@@ -379,7 +384,7 @@ func NewPubrelMessage(id uint16) *PubrelMessage {
 		FixedHeader: NewFixedHeader(
 			Pubrel,
 			false, 0, false,
-			0, // TODO:check
+			2,
 		),
 		PacketID: id,
 	}
@@ -408,7 +413,7 @@ func NewPubcompMessage(id uint16) *PubcompMessage {
 		FixedHeader: NewFixedHeader(
 			Pubcomp,
 			false, 0, false,
-			0, // TODO:check
+			2,
 		),
 		PacketID: id,
 	}
@@ -446,11 +451,16 @@ type SubscribeMessage struct {
 }
 
 func NewSubscribeMessage(id uint16, topics []SubscribeTopic) *SubscribeMessage {
+	length := 2 + 3*len(topics)
+	for _, v := range topics {
+		length += len(v.Topic)
+	}
+
 	return &SubscribeMessage{
 		FixedHeader: NewFixedHeader(
 			Subscribe,
 			false, 0, false,
-			0, // TODO:check
+			uint8(length),
 		),
 		PacketID:        id,
 		SubscribeTopics: topics,
@@ -520,11 +530,12 @@ type SubackMessage struct {
 }
 
 func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
+	length := 2 + len(codes)
 	return &SubackMessage{
 		FixedHeader: NewFixedHeader(
 			Suback,
 			false, 0, false,
-			0, // TODO:check
+			uint8(length),
 		),
 		PacketID:    id,
 		ReturnCodes: codes,
@@ -556,11 +567,15 @@ type UnsubscribeMessage struct {
 }
 
 func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
+	length := 2 + 2*len(topics)
+	for _, v := range topics {
+		length = len(v)
+	}
 	return &UnsubscribeMessage{
 		FixedHeader: NewFixedHeader(
 			Unsubscribe,
 			false, 0, false,
-			0, // TODO:check
+			uint8(length),
 		),
 		PacketID: id,
 		Topics:   topics,
@@ -610,7 +625,7 @@ func NewUnsubackMessage(id uint16) *UnsubackMessage {
 		FixedHeader: NewFixedHeader(
 			Unsuback,
 			false, 0, false,
-			0, // TODO:check
+			2,
 		),
 		PacketID: id,
 	}
@@ -638,7 +653,7 @@ func NewPingreqMessage() *PingreqMessage {
 		FixedHeader: NewFixedHeader(
 			Pingreq,
 			false, 0, false,
-			0, // TODO:check
+			0,
 		),
 	}
 }
@@ -660,7 +675,7 @@ func NewPingrespMessage() *PingrespMessage {
 		FixedHeader: NewFixedHeader(
 			Pingresp,
 			false, 0, false,
-			0, // TODO:check
+			0,
 		),
 	}
 }
@@ -682,7 +697,7 @@ func NewDisconnectMessage() *DisconnectMessage {
 		FixedHeader: NewFixedHeader(
 			Disconnect,
 			false, 0, false,
-			0, // TODO:check
+			0,
 		),
 	}
 }
