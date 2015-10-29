@@ -175,7 +175,17 @@ type ConnectMessage struct {
 	KeepAlive    uint16
 }
 
-var ProtocolName = "MQTT"
+type Protocol struct {
+	Name  string
+	Level uint8
+}
+
+// TODO this should be const
+var MQTT_3_1_1 *Protocol = &Protocol{
+	Name:  "MQTT",
+	Level: 4,
+}
+
 
 func NewConnectMessage(connectFlags ConnectFlag, keepAlive uint16) *ConnectMessage {
 	length := 6 + len(ProtocolName)
