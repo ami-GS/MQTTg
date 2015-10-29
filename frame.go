@@ -186,6 +186,18 @@ var MQTT_3_1_1 *Protocol = &Protocol{
 	Level: 4,
 }
 
+type User struct {
+	Name   string
+	Passwd string
+}
+
+func NewUser(name, pass string) *User {
+	return &User{
+		Name:   name,
+		Passwd: pass,
+	}
+}
+
 
 func NewConnectMessage(connectFlags ConnectFlag, keepAlive uint16) *ConnectMessage {
 	length := 6 + len(ProtocolName)
