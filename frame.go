@@ -169,10 +169,12 @@ func (self ConnectFlag) String() (s string) {
 
 type ConnectMessage struct {
 	*FixedHeader
-	ProtoName    string
-	ProtoLevel   uint8
-	ConnectFlags ConnectFlag
+	Protocol     *Protocol
 	KeepAlive    uint16
+	ClientID     string
+	CleanSession bool
+	Will         *Will
+	User         *User
 }
 
 type Protocol struct {
@@ -205,8 +207,6 @@ type Will struct {
 	QoS     uint8
 }
 
-func NewConnectMessage(connectFlags ConnectFlag, keepAlive uint16) *ConnectMessage {
-	length := 6 + len(ProtocolName)
 func NewWill(topic, message string, retain bool, qos uint8) *Will {
 	return &Will{
 		Topic:   topic,
@@ -215,36 +215,114 @@ func NewWill(topic, message string, retain bool, qos uint8) *Will {
 		QoS:     qos,
 	}
 }
+
+func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, will *Will, user *User) *ConnectMessage {
+	length := 6 + len(MQTT_3_1_1.Name) + 2 + len(clientID)
+	if will != nil {
+		length += 4 + len(will.Topic) + len(will.Message)
+	}
+	if user != nil {
+		// TODO : password encryption here
+		length += 4 + len(user.Name) + len(user.Passwd)
+	}
 	return &ConnectMessage{
 		FixedHeader: NewFixedHeader(
 			Connect,
 			false, 0, false,
 			uint8(length),
 		),
-		ProtoName:    ProtocolName,
-		ProtoLevel:   4,
-		ConnectFlags: connectFlags,
+		Protocol:     MQTT_3_1_1,
 		KeepAlive:    keepAlive,
+		ClientID:     clientID,
+		CleanSession: cleanSession,
+		Will:         will,
+		User:         user,
 	}
-	// TODO:consider about payload
 }
 
 func (self *ConnectMessage) GetWire() (wire []uint8) {
-	protoLen := len(self.ProtoName)
-	wire = make([]uint8, protoLen+6)
-	binary.BigEndian.PutUint16(wire, uint16(protoLen))
+	wire = make([]uint8, 2+len(self.Protocol.Name)+6)
+	cursor := UTF8_encode(wire, self.Protocol.Name)
 
-	for i := 0; i < protoLen; i++ {
-		wire[2+i] = uint8(self.ProtoName[i])
+	wire[cursor] = self.Protocol.Level
+	cursor += 2 // skip flag
+
+	binary.BigEndian.PutUint16(wire[cursor:], self.KeepAlive)
+	cursor += 2
+	cursor += UTF8_encode(wire[cursor:], self.ClientID)
+
+	var flag ConnectFlag
+	if self.CleanSession {
+		flag |= CleanSession
 	}
-	wire[2+protoLen] = self.ProtoLevel
-	wire[3+protoLen] = uint8(self.ConnectFlags)
-	binary.BigEndian.PutUint16(wire[4+protoLen:], self.KeepAlive)
+	if self.Will != nil {
+		flag |= WillFlag
+		flag |= ConnectFlag(self.Will.QoS << 3)
+		if self.Will.Retain {
+			flag |= WillRetain
+		}
+		cursor += UTF8_encode(wire[cursor:], self.Will.Topic)
+		cursor += UTF8_encode(wire[cursor:], self.Will.Message)
+	}
+	if self.User != nil {
+		if len(self.User.Name) > 0 {
+			flag |= UserName
+			cursor += UTF8_encode(wire[cursor:], self.User.Name)
+		}
+		if len(self.User.Passwd) > 0 {
+			flag |= Password
+			cursor += UTF8_encode(wire[cursor:], self.User.Passwd)
+		}
+	}
+	wire[3+len(self.Protocol.Name)] = uint8(flag)
 
 	return
 }
 
 func ParseConnectMessage(wire []byte) (m *ConnectMessage) {
+	cursor, protoName := UTF8_decode(wire)
+	level := wire[cursor]
+	if MQTT_3_1_1.Name != protoName {
+	}
+	if MQTT_3_1_1.Level != level {
+	}
+	// TODO: validate protocol version
+
+	flag := ConnectFlag(wire[cursor+1])
+	cursor += 2
+	keepAlive := binary.BigEndian.Uint16(wire[cursor:])
+	cursor += 2
+	cTmp, clientID := UTF8_decode(wire[cursor:])
+	cursor += cTmp
+
+	var will *Will = nil
+	if flag&WillFlag == WillFlag {
+		cTmp1, topic := UTF8_decode(wire[cursor:])
+		cTmp, message := UTF8_decode(wire[cursor+cTmp1:])
+		cursor += cTmp1 + cTmp
+		retain := flag&WillRetain == WillRetain
+		qos := uint8(flag&WillQoS_3) >> 3
+		will = NewWill(topic, message, retain, qos)
+	}
+	cleanSession := flag&CleanSession == CleanSession
+
+	var user *User = nil
+	if flag&UserName == UserName || flag&Password == Password {
+		var name, passwd string
+		if flag&UserName == UserName {
+			cTmp, name = UTF8_decode(wire[cursor:])
+			cursor += cTmp
+		}
+		if flag&Password == Password {
+			cTmp, passwd = UTF8_decode(wire[cursor:])
+			cursor += cTmp
+		}
+		user = NewUser(name, passwd)
+	}
+
+	// NOTE: This calculates FixedHeader again, inefficient
+	m = NewConnectMessage(keepAlive, clientID, cleanSession, will, user)
+
 	return
 }
 
