@@ -198,9 +198,23 @@ func NewUser(name, pass string) *User {
 	}
 }
 
+type Will struct {
+	Topic   string
+	Message string
+	Retain  bool
+	QoS     uint8
+}
 
 func NewConnectMessage(connectFlags ConnectFlag, keepAlive uint16) *ConnectMessage {
 	length := 6 + len(ProtocolName)
+func NewWill(topic, message string, retain bool, qos uint8) *Will {
+	return &Will{
+		Topic:   topic,
+		Message: message,
+		Retain:  retain,
+		QoS:     qos,
+	}
+}
 	return &ConnectMessage{
 		FixedHeader: NewFixedHeader(
 			Connect,
