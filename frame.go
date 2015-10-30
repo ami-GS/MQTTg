@@ -52,10 +52,10 @@ type FixedHeader struct {
 	Dup          bool
 	QoS          uint8
 	Retain       bool
-	RemainLength uint8
+	RemainLength uint32
 }
 
-func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length uint8) *FixedHeader {
+func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length uint32) *FixedHeader {
 	return &FixedHeader{
 		Type:         mType,
 		Dup:          dup,
@@ -66,7 +66,18 @@ func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length 
 }
 
 func (self *FixedHeader) GetWire() (wire []uint8) {
-	wire = make([]uint8, 2)
+	remainByteLen := 0
+	switch {
+	case self.RemainLength <= 0x7f:
+		remainByteLen = 1
+	case self.RemainLength <= 0x3fff:
+		remainByteLen = 2
+	case self.RemainLength <= 0x1fffff:
+		remainByteLen = 3
+	case self.RemainLength <= 0x0fffffff:
+		remainByteLen = 4
+	}
+	wire = make([]uint8, 1+remainByteLen)
 	wire[0] = uint8(self.Type)
 	if self.Dup {
 		wire[0] |= 0x08
@@ -75,7 +86,7 @@ func (self *FixedHeader) GetWire() (wire []uint8) {
 	if self.Retain {
 		wire[0] |= 0x01
 	}
-	wire[1] = self.RemainLength
+	_ = RemainEncode(wire[1:], self.RemainLength)
 
 	return
 }
@@ -94,7 +105,8 @@ func ParseFixedHeader(wire []byte) (h *FixedHeader) {
 			retain = true
 		}
 	}
-	h = NewFixedHeader(mType, dup, qos, retain, wire[1])
+	length := RemainDecode(wire[1:])
+	h = NewFixedHeader(mType, dup, qos, retain, length)
 
 	return
 }
@@ -229,7 +241,7 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 		FixedHeader: NewFixedHeader(
 			Connect,
 			false, 0, false,
-			uint8(length),
+			uint32(length),
 		),
 		Protocol:     MQTT_3_1_1,
 		KeepAlive:    keepAlive,
@@ -398,7 +410,7 @@ func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16
 		FixedHeader: NewFixedHeader(
 			Publish,
 			dub, qos, retain,
-			uint8(length),
+			uint32(length),
 		),
 		TopicName: topic,
 		PacketID:  id,
@@ -574,7 +586,7 @@ func NewSubscribeMessage(id uint16, topics []SubscribeTopic) *SubscribeMessage {
 		FixedHeader: NewFixedHeader(
 			Subscribe,
 			false, 0, false,
-			uint8(length),
+			uint32(length),
 		),
 		PacketID:        id,
 		SubscribeTopics: topics,
@@ -649,7 +661,7 @@ func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
 		FixedHeader: NewFixedHeader(
 			Suback,
 			false, 0, false,
-			uint8(length),
+			uint32(length),
 		),
 		PacketID:    id,
 		ReturnCodes: codes,
@@ -689,7 +701,7 @@ func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
 		FixedHeader: NewFixedHeader(
 			Unsubscribe,
 			false, 0, false,
-			uint8(length),
+			uint32(length),
 		),
 		PacketID: id,
 		Topics:   topics,
