@@ -96,14 +96,9 @@ func ParseFixedHeader(wire []byte) (h *FixedHeader) {
 	var qos uint8
 	mType := MessageType(wire[0] >> 4)
 	if mType == Publish {
-		if wire[0]&0x08 == 0x08 {
-			dup = true
-		}
+		dup = wire[0]&0x08 == 0x08
 		qos = (wire[0] >> 1) & 0x03
-
-		if wire[0]&0x01 == 0x01 {
-			retain = true
-		}
+		retain = wire[0]&0x01 == 0x01
 	}
 	length := RemainDecode(wire[1:])
 	h = NewFixedHeader(mType, dup, qos, retain, length)
