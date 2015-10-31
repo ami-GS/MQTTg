@@ -65,7 +65,7 @@ func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length 
 	}
 }
 
-func (self *FixedHeader) GetWire() (wire []uint8) {
+func (self *FixedHeader) GetWire() (wire []byte) {
 	remainByteLen := 0
 	switch {
 	case self.RemainLength <= 0x7f:
@@ -247,7 +247,7 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 	}
 }
 
-func (self *ConnectMessage) GetWire() (wire []uint8) {
+func (self *ConnectMessage) GetWire() (wire []byte) {
 	wire = make([]uint8, 2+len(self.Protocol.Name)+6)
 	cursor := UTF8_encode(wire, self.Protocol.Name)
 
