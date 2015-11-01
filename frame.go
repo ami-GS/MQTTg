@@ -112,7 +112,9 @@ type VariableHeader interface {
 	VHeaderString() string
 }
 
-var ParseMessage map[MessageType]interface{} = map[MessageType]interface{}{
+type FrameParser func(wire []byte) (Message, error)
+
+var ParseMessage = map[MessageType]FrameParser{
 	Connect:     ParseConnectMessage,
 	Connack:     ParseConnackMessage,
 	Publish:     ParsePublishMessage,
@@ -131,7 +133,7 @@ var ParseMessage map[MessageType]interface{} = map[MessageType]interface{}{
 
 type Message interface {
 	GetWire() ([]byte, error)
-	String() string
+	//String() string
 }
 
 type ConnectFlag uint8
@@ -247,8 +249,8 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 	}
 }
 
-func (self *ConnectMessage) GetWire() (wire []byte) {
-	wire = make([]uint8, 2+len(self.Protocol.Name)+6)
+func (self *ConnectMessage) GetWire() ([]byte, error) {
+	wire := make([]uint8, 2+len(self.Protocol.Name)+6)
 	cursor := UTF8_encode(wire, self.Protocol.Name)
 
 	wire[cursor] = self.Protocol.Level
@@ -283,10 +285,10 @@ func (self *ConnectMessage) GetWire() (wire []byte) {
 	}
 	wire[3+len(self.Protocol.Name)] = uint8(flag)
 
-	return
+	return wire, nil
 }
 
-func ParseConnectMessage(wire []byte) (m *ConnectMessage) {
+func ParseConnectMessage(wire []byte) (Message, error) {
 	cursor, protoName := UTF8_decode(wire)
 	level := wire[cursor]
 	if MQTT_3_1_1.Name != protoName {
@@ -328,9 +330,9 @@ func ParseConnectMessage(wire []byte) (m *ConnectMessage) {
 	}
 
 	// NOTE: This calculates FixedHeader again, inefficient
-	m = NewConnectMessage(keepAlive, clientID, cleanSession, will, user)
+	m := NewConnectMessage(keepAlive, clientID, cleanSession, will, user)
 
-	return
+	return m, nil
 }
 
 type ConnectReturnCode uint8
@@ -374,22 +376,23 @@ func NewConnackMessage(flag bool, code ConnectReturnCode) *ConnackMessage {
 	}
 }
 
-func (self *ConnackMessage) GetWire() (wire []byte) {
-	wire = make([]byte, 2)
+func (self *ConnackMessage) GetWire() ([]byte, error) {
+	wire := make([]byte, 2)
 	if self.SessionPresentFlag {
 		wire[0] = 0x01
 	}
 	wire[1] = byte(self.ReturnCode)
 
-	return
+	return wire, nil
 }
 
-func ParseConnackMessage(wire []byte) (m *ConnackMessage) {
+func ParseConnackMessage(wire []byte) (Message, error) {
+	m := &ConnackMessage{}
 	if wire[0] == 1 {
 		m.SessionPresentFlag = true
 	}
 	m.ReturnCode = ConnectReturnCode(wire[1])
-	return
+	return m, nil
 }
 
 type PublishMessage struct {
@@ -413,9 +416,9 @@ func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16
 	}
 }
 
-func (self *PublishMessage) GetWire() (wire []byte) {
+func (self *PublishMessage) GetWire() ([]byte, error) {
 	topicLen := len(self.TopicName)
-	wire = make([]byte, 4+topicLen+len(self.Payload))
+	wire := make([]byte, 4+topicLen+len(self.Payload))
 	binary.BigEndian.PutUint16(wire, uint16(topicLen))
 	for i, v := range []byte(self.TopicName) {
 		wire[2+i] = v
@@ -425,16 +428,17 @@ func (self *PublishMessage) GetWire() (wire []byte) {
 		wire[4+topicLen+i] = v
 	}
 
-	return
+	return wire, nil
 }
 
-func ParsePublishMessage(wire []byte) (m *PublishMessage) {
+func ParsePublishMessage(wire []byte) (Message, error) {
 	var topicLen uint16 = uint16((wire[0] << 8) + wire[1])
+	m := &PublishMessage{}
 	m.TopicName = string(wire[:topicLen])
 	m.PacketID = binary.BigEndian.Uint16(wire[topicLen : topicLen+2])
 	m.Payload = wire[topicLen+1:]
 
-	return
+	return m, nil
 }
 
 type PubackMessage struct {
@@ -453,17 +457,18 @@ func NewPubackMessage(id uint16) *PubackMessage {
 	}
 }
 
-func (self *PubackMessage) GetWire() (wire []byte) {
-	wire = make([]byte, 2)
+func (self *PubackMessage) GetWire() ([]byte, error) {
+	wire := make([]byte, 2)
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 
-	return
+	return wire, nil
 }
 
-func ParsePubackMessage(wire []byte) (m *PubackMessage) {
+func ParsePubackMessage(wire []byte) (Message, error) {
+	m := &PubackMessage{}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
-	return
+	return m, nil
 }
 
 type PubrecMessage struct {
@@ -482,17 +487,18 @@ func NewPubrecMessage(id uint16) *PubrecMessage {
 	}
 }
 
-func (self *PubrecMessage) GetWire() (wire []byte) {
-	wire = make([]byte, 2)
+func (self *PubrecMessage) GetWire() ([]byte, error) {
+	wire := make([]byte, 2)
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 
-	return
+	return wire, nil
 }
 
-func ParsePubrecMessage(wire []byte) (m *PubrecMessage) {
+func ParsePubrecMessage(wire []byte) (Message, error) {
+	m := &PubrecMessage{}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
-	return
+	return m, nil
 }
 
 type PubrelMessage struct {
@@ -511,17 +517,18 @@ func NewPubrelMessage(id uint16) *PubrelMessage {
 	}
 }
 
-func (self *PubrelMessage) GetWire() (wire []byte) {
-	wire = make([]byte, 2)
+func (self *PubrelMessage) GetWire() ([]byte, error) {
+	wire := make([]byte, 2)
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 
-	return
+	return wire, nil
 }
 
-func ParsePubrelMessage(wire []byte) (m *PubrelMessage) {
+func ParsePubrelMessage(wire []byte) (Message, error) {
+	m := &PubrelMessage{}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
-	return
+	return m, nil
 }
 
 type PubcompMessage struct {
@@ -540,17 +547,18 @@ func NewPubcompMessage(id uint16) *PubcompMessage {
 	}
 }
 
-func (self *PubcompMessage) GetWire() (wire []byte) {
-	wire = make([]byte, 2)
+func (self *PubcompMessage) GetWire() ([]byte, error) {
+	wire := make([]byte, 2)
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 
-	return
+	return wire, nil
 }
 
-func ParsePubcompMessage(wire []byte) (m *PubcompMessage) {
+func ParsePubcompMessage(wire []byte) (Message, error) {
+	m := &PubcompMessage{}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
-	return
+	return m, nil
 }
 
 type SubscribeTopic struct {
@@ -588,12 +596,12 @@ func NewSubscribeMessage(id uint16, topics []SubscribeTopic) *SubscribeMessage {
 	}
 }
 
-func (self *SubscribeMessage) GetWire() (wire []byte) {
+func (self *SubscribeMessage) GetWire() ([]byte, error) {
 	topicsLen := 0
 	for _, v := range self.SubscribeTopics {
 		topicsLen += len(v.Topic)
 	}
-	wire = make([]byte, 2+3*len(self.SubscribeTopics)+topicsLen)
+	wire := make([]byte, 2+3*len(self.SubscribeTopics)+topicsLen)
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 	cursor := 2
 	for _, v := range self.SubscribeTopics {
@@ -608,10 +616,11 @@ func (self *SubscribeMessage) GetWire() (wire []byte) {
 		wire[cursor] = v.QoS
 	}
 
-	return
+	return wire, nil
 }
 
-func ParseSubscribeMessage(wire []byte) (m *SubscribeMessage) {
+func ParseSubscribeMessage(wire []byte) (Message, error) {
+	m := &SubscribeMessage{}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	allLen := len(wire)
 	for i := 2; i < allLen; {
@@ -622,7 +631,7 @@ func ParseSubscribeMessage(wire []byte) (m *SubscribeMessage) {
 		i += 3 + topicLen
 	}
 
-	return
+	return m, nil
 }
 
 type SubscribeReturnCode uint8
@@ -663,22 +672,23 @@ func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
 	}
 }
 
-func (self *SubackMessage) GetWire() (wire []byte) {
-	wire = make([]byte, 2+len(self.ReturnCodes))
+func (self *SubackMessage) GetWire() ([]byte, error) {
+	wire := make([]byte, 2+len(self.ReturnCodes))
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 	for i, v := range self.ReturnCodes {
 		wire[2+i] = byte(v)
 	}
-	return
+	return wire, nil
 }
 
-func ParseSubackMessage(wire []byte) (m *SubackMessage) {
+func ParseSubackMessage(wire []byte) (Message, error) {
+	m := &SubackMessage{}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	for _, v := range wire[2:] {
 		m.ReturnCodes = append(m.ReturnCodes, SubscribeReturnCode(v))
 	}
 
-	return
+	return m, nil
 }
 
 type UnsubscribeMessage struct {
@@ -703,12 +713,12 @@ func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
 	}
 }
 
-func (self *UnsubscribeMessage) GetWire() (wire []byte) {
+func (self *UnsubscribeMessage) GetWire() ([]byte, error) {
 	allLen := 0
 	for _, v := range self.Topics {
 		allLen += len(v)
 	}
-	wire = make([]byte, 2+2*len(self.Topics)+allLen)
+	wire := make([]byte, 2+2*len(self.Topics)+allLen)
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 
 	cursor := 2
@@ -722,10 +732,11 @@ func (self *UnsubscribeMessage) GetWire() (wire []byte) {
 		cursor += len(v)
 	}
 
-	return
+	return wire, nil
 }
 
-func ParseUnsubscribeMessage(wire []byte) (m *UnsubscribeMessage) {
+func ParseUnsubscribeMessage(wire []byte) (Message, error) {
+	m := &UnsubscribeMessage{}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	allLen := len(wire)
 	for i := 2; i < allLen; {
@@ -733,7 +744,7 @@ func ParseUnsubscribeMessage(wire []byte) (m *UnsubscribeMessage) {
 		m.Topics = append(m.Topics, wire[i+2:i+2+topicLen])
 		i += 2 + topicLen
 	}
-	return
+	return m, nil
 }
 
 type UnsubackMessage struct {
@@ -752,17 +763,18 @@ func NewUnsubackMessage(id uint16) *UnsubackMessage {
 	}
 }
 
-func (self *UnsubackMessage) GetWire() (wire []byte) {
-	wire = make([]byte, 2)
+func (self *UnsubackMessage) GetWire() ([]byte, error) {
+	wire := make([]byte, 2)
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 
-	return
+	return wire, nil
 }
 
-func ParseUnsubackMessage(wire []byte) (m *UnsubackMessage) {
+func ParseUnsubackMessage(wire []byte) (Message, error) {
+	m := &UnsubackMessage{}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
-	return
+	return m, nil
 }
 
 type PingreqMessage struct {
@@ -779,12 +791,13 @@ func NewPingreqMessage() *PingreqMessage {
 	}
 }
 
-func (self *PingreqMessage) GetWire() (wire []byte) {
-	return
+func (self *PingreqMessage) GetWire() ([]byte, error) {
+	return nil, nil // CHECK: Is this correct?
 }
 
-func ParsePingreqMessage(wire []byte) (m *PingreqMessage) {
-	return
+func ParsePingreqMessage(wire []byte) (Message, error) {
+	m := &PingreqMessage{}
+	return m, nil
 }
 
 type PingrespMessage struct {
@@ -801,12 +814,13 @@ func NewPingrespMessage() *PingrespMessage {
 	}
 }
 
-func (self *PingrespMessage) GetWire() (wire []byte) {
-	return
+func (self *PingrespMessage) GetWire() ([]byte, error) {
+	return nil, nil // CHECK: Is this correct?
 }
 
-func ParsePingrespMessage(wire []byte) (m *PingrespMessage) {
-	return
+func ParsePingrespMessage(wire []byte) (Message, error) {
+	m := &PingrespMessage{}
+	return m, nil
 }
 
 type DisconnectMessage struct {
@@ -823,10 +837,11 @@ func NewDisconnectMessage() *DisconnectMessage {
 	}
 }
 
-func (self *DisconnectMessage) GetWire() (wire []byte) {
-	return
+func (self *DisconnectMessage) GetWire() ([]byte, error) {
+	return nil, nil
 }
 
-func ParseDisconnectMessage(wire []byte) (m *DisconnectMessage) {
-	return
+func ParseDisconnectMessage(wire []byte) (Message, error) {
+	m := &DisconnectMessage{}
+	return m, nil
 }
