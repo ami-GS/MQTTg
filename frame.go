@@ -178,12 +178,12 @@ func (self ConnectFlag) String() (s string) {
 
 type ConnectMessage struct {
 	*FixedHeader
-	Protocol     *Protocol
-	KeepAlive    uint16
-	ClientID     string
-	CleanSession bool
-	Will         *Will
-	User         *User
+	Protocol  *Protocol
+	Flags     ConnectFlag
+	KeepAlive uint16
+	ClientID  string
+	Will      *Will
+	User      *User
 }
 
 type Protocol struct {
@@ -227,12 +227,27 @@ func NewWill(topic, message string, retain bool, qos uint8) *Will {
 
 func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, will *Will, user *User) *ConnectMessage {
 	length := 6 + len(MQTT_3_1_1.Name) + 2 + len(clientID)
+	// The way to deal with flags are inefficient
+	flags := ConnectFlag(0)
+	if cleanSession {
+		flags |= CleanSession
+	}
 	if will != nil {
 		length += 4 + len(will.Topic) + len(will.Message)
+		flags |= WillFlag | ConnectFlag(will.QoS<<3)
+		if will.Retain {
+			flags |= WillRetain
+		}
 	}
 	if user != nil {
 		// TODO : password encryption here
 		length += 4 + len(user.Name) + len(user.Passwd)
+		if len(user.Name) > 0 {
+			flags |= UserName
+		}
+		if len(user.Passwd) > 0 {
+			flags |= Password
+		}
 	}
 	return &ConnectMessage{
 		FixedHeader: NewFixedHeader(
@@ -240,12 +255,12 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 			false, 0, false,
 			uint32(length),
 		),
-		Protocol:     MQTT_3_1_1,
-		KeepAlive:    keepAlive,
-		ClientID:     clientID,
-		CleanSession: cleanSession,
-		Will:         will,
-		User:         user,
+		Protocol:  MQTT_3_1_1,
+		Flags:     flags,
+		KeepAlive: keepAlive,
+		ClientID:  clientID,
+		Will:      will,
+		User:      user,
 	}
 }
 
@@ -260,35 +275,25 @@ func (self *ConnectMessage) GetWire() ([]byte, error) {
 	cursor += 2
 	cursor += UTF8_encode(wire[cursor:], self.ClientID)
 
-	var flag ConnectFlag
-	if self.CleanSession {
-		flag |= CleanSession
-	}
 	if self.Will != nil {
-		flag |= WillFlag
-		flag |= ConnectFlag(self.Will.QoS << 3)
-		if self.Will.Retain {
-			flag |= WillRetain
-		}
 		cursor += UTF8_encode(wire[cursor:], self.Will.Topic)
 		cursor += UTF8_encode(wire[cursor:], self.Will.Message)
 	}
 	if self.User != nil {
 		if len(self.User.Name) > 0 {
-			flag |= UserName
 			cursor += UTF8_encode(wire[cursor:], self.User.Name)
 		}
 		if len(self.User.Passwd) > 0 {
-			flag |= Password
 			cursor += UTF8_encode(wire[cursor:], self.User.Passwd)
 		}
 	}
-	wire[3+len(self.Protocol.Name)] = uint8(flag)
+	wire[3+len(self.Protocol.Name)] = uint8(self.Flags)
 
 	return wire, nil
 }
 
 func ParseConnectMessage(wire []byte) (Message, error) {
+	m := &ConnectMessage{}
 	cursor, protoName := UTF8_decode(wire)
 	level := wire[cursor]
 	if MQTT_3_1_1.Name != protoName {
