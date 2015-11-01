@@ -301,41 +301,37 @@ func ParseConnectMessage(wire []byte) (Message, error) {
 	if MQTT_3_1_1.Level != level {
 	}
 	// TODO: validate protocol version
+	m.Protocol = &Protocol{protoName, level}
 
-	flag := ConnectFlag(wire[cursor+1])
+	m.Flags = ConnectFlag(wire[cursor+1])
 	cursor += 2
-	keepAlive := binary.BigEndian.Uint16(wire[cursor:])
+	m.KeepAlive = binary.BigEndian.Uint16(wire[cursor:])
 	cursor += 2
 	cTmp, clientID := UTF8_decode(wire[cursor:])
+	m.ClientID = clientID
 	cursor += cTmp
 
-	var will *Will = nil
-	if flag&WillFlag == WillFlag {
+	if m.Flags&WillFlag == WillFlag {
 		cTmp1, topic := UTF8_decode(wire[cursor:])
 		cTmp, message := UTF8_decode(wire[cursor+cTmp1:])
 		cursor += cTmp1 + cTmp
-		retain := flag&WillRetain == WillRetain
-		qos := uint8(flag&WillQoS_3) >> 3
-		will = NewWill(topic, message, retain, qos)
+		retain := m.Flags&WillRetain == WillRetain
+		qos := uint8(m.Flags&WillQoS_3) >> 3
+		m.Will = NewWill(topic, message, retain, qos)
 	}
-	cleanSession := flag&CleanSession == CleanSession
 
-	var user *User = nil
-	if flag&UserName == UserName || flag&Password == Password {
+	if m.Flags&UserName == UserName || m.Flags&Password == Password {
 		var name, passwd string
-		if flag&UserName == UserName {
+		if m.Flags&UserName == UserName {
 			cTmp, name = UTF8_decode(wire[cursor:])
 			cursor += cTmp
 		}
-		if flag&Password == Password {
+		if m.Flags&Password == Password {
 			cTmp, passwd = UTF8_decode(wire[cursor:])
 			cursor += cTmp
 		}
-		user = NewUser(name, passwd)
+		m.User = NewUser(name, passwd)
 	}
-
-	// NOTE: This calculates FixedHeader again, inefficient
-	m := NewConnectMessage(keepAlive, clientID, cleanSession, will, user)
 
 	return m, nil
 }
