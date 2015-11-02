@@ -112,7 +112,7 @@ type VariableHeader interface {
 	VHeaderString() string
 }
 
-type FrameParser func(wire []byte) (Message, error)
+type FrameParser func(fh *FixedHeader, wire []byte) (Message, error)
 
 var ParseMessage = map[MessageType]FrameParser{
 	Connect:     ParseConnectMessage,
@@ -292,8 +292,10 @@ func (self *ConnectMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParseConnectMessage(wire []byte) (Message, error) {
-	m := &ConnectMessage{}
+func ParseConnectMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &ConnectMessage{
+		FixedHeader: fh,
+	}
 	cursor, protoName := UTF8_decode(wire)
 	level := wire[cursor]
 	if MQTT_3_1_1.Name != protoName {
@@ -387,8 +389,10 @@ func (self *ConnackMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParseConnackMessage(wire []byte) (Message, error) {
-	m := &ConnackMessage{}
+func ParseConnackMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &ConnackMessage{
+		FixedHeader: fh,
+	}
 	if wire[0] == 1 {
 		m.SessionPresentFlag = true
 	}
@@ -432,9 +436,11 @@ func (self *PublishMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParsePublishMessage(wire []byte) (Message, error) {
+func ParsePublishMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	var topicLen uint16 = uint16((wire[0] << 8) + wire[1])
-	m := &PublishMessage{}
+	m := &PublishMessage{
+		FixedHeader: fh,
+	}
 	m.TopicName = string(wire[:topicLen])
 	m.PacketID = binary.BigEndian.Uint16(wire[topicLen : topicLen+2])
 	m.Payload = wire[topicLen+1:]
@@ -465,8 +471,10 @@ func (self *PubackMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParsePubackMessage(wire []byte) (Message, error) {
-	m := &PubackMessage{}
+func ParsePubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &PubackMessage{
+		FixedHeader: fh,
+	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
 	return m, nil
@@ -495,8 +503,10 @@ func (self *PubrecMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParsePubrecMessage(wire []byte) (Message, error) {
-	m := &PubrecMessage{}
+func ParsePubrecMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &PubrecMessage{
+		FixedHeader: fh,
+	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
 	return m, nil
@@ -525,8 +535,10 @@ func (self *PubrelMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParsePubrelMessage(wire []byte) (Message, error) {
-	m := &PubrelMessage{}
+func ParsePubrelMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &PubrelMessage{
+		FixedHeader: fh,
+	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
 	return m, nil
@@ -555,8 +567,10 @@ func (self *PubcompMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParsePubcompMessage(wire []byte) (Message, error) {
-	m := &PubcompMessage{}
+func ParsePubcompMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &PubcompMessage{
+		FixedHeader: fh,
+	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
 	return m, nil
@@ -620,8 +634,10 @@ func (self *SubscribeMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParseSubscribeMessage(wire []byte) (Message, error) {
-	m := &SubscribeMessage{}
+func ParseSubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &SubscribeMessage{
+		FixedHeader: fh,
+	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	allLen := len(wire)
 	for i := 2; i < allLen; {
@@ -682,8 +698,10 @@ func (self *SubackMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParseSubackMessage(wire []byte) (Message, error) {
-	m := &SubackMessage{}
+func ParseSubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &SubackMessage{
+		FixedHeader: fh,
+	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	for _, v := range wire[2:] {
 		m.ReturnCodes = append(m.ReturnCodes, SubscribeReturnCode(v))
@@ -736,8 +754,10 @@ func (self *UnsubscribeMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParseUnsubscribeMessage(wire []byte) (Message, error) {
-	m := &UnsubscribeMessage{}
+func ParseUnsubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &UnsubscribeMessage{
+		FixedHeader: fh,
+	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	allLen := len(wire)
 	for i := 2; i < allLen; {
@@ -771,8 +791,10 @@ func (self *UnsubackMessage) GetWire() ([]byte, error) {
 	return wire, nil
 }
 
-func ParseUnsubackMessage(wire []byte) (Message, error) {
-	m := &UnsubackMessage{}
+func ParseUnsubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &UnsubackMessage{
+		FixedHeader: fh,
+	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 
 	return m, nil
@@ -796,8 +818,10 @@ func (self *PingreqMessage) GetWire() ([]byte, error) {
 	return nil, nil // CHECK: Is this correct?
 }
 
-func ParsePingreqMessage(wire []byte) (Message, error) {
-	m := &PingreqMessage{}
+func ParsePingreqMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &PingreqMessage{
+		FixedHeader: fh,
+	}
 	return m, nil
 }
 
@@ -819,8 +843,10 @@ func (self *PingrespMessage) GetWire() ([]byte, error) {
 	return nil, nil // CHECK: Is this correct?
 }
 
-func ParsePingrespMessage(wire []byte) (Message, error) {
-	m := &PingrespMessage{}
+func ParsePingrespMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &PingrespMessage{
+		FixedHeader: fh,
+	}
 	return m, nil
 }
 
@@ -842,7 +868,9 @@ func (self *DisconnectMessage) GetWire() ([]byte, error) {
 	return nil, nil
 }
 
-func ParseDisconnectMessage(wire []byte) (Message, error) {
-	m := &DisconnectMessage{}
+func ParseDisconnectMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	m := &DisconnectMessage{
+		FixedHeader: fh,
+	}
 	return m, nil
 }
