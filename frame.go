@@ -47,6 +47,20 @@ func (self MessageType) String() string {
 	return types[int(self)]
 }
 
+func ReadFrame(wire []byte) (Message, error) {
+	// TODO: The argument should be considered (like io.Reader)
+	fh, err := ParseFixedHeader(wire) // This causes error
+	if err != nil {
+		return nil, err
+	}
+	ms, err := ParseMessage[fh.Type](fh, wire)
+	if err != nil {
+		return nil, err
+	}
+
+	return ms, nil
+}
+
 type FixedHeader struct {
 	Type         MessageType
 	Dup          bool
@@ -91,7 +105,7 @@ func (self *FixedHeader) GetWire() (wire []byte) {
 	return
 }
 
-func ParseFixedHeader(wire []byte) (h *FixedHeader) {
+func ParseFixedHeader(wire []byte) (*FixedHeader, error) {
 	var dup, retain bool
 	var qos uint8
 	mType := MessageType(wire[0] >> 4)
@@ -101,9 +115,9 @@ func ParseFixedHeader(wire []byte) (h *FixedHeader) {
 		retain = wire[0]&0x01 == 0x01
 	}
 	length := RemainDecode(wire[1:])
-	h = NewFixedHeader(mType, dup, qos, retain, length)
+	h := NewFixedHeader(mType, dup, qos, retain, length)
 
-	return
+	return h, nil
 }
 
 type VariableHeader interface {
