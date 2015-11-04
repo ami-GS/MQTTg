@@ -1,0 +1,46 @@
+package MQTTg
+
+type User struct {
+	Name   string
+	Passwd string
+}
+
+func NewUser(name, pass string) *User {
+	return &User{
+		Name:   name,
+		Passwd: pass,
+	}
+}
+
+type Client struct {
+	Ct       *Transport
+	ClientID string
+	User     *User
+}
+
+func (self *Client) SendMessage(m Message) error {
+	wire, err := m.GetWire()
+	if err != nil {
+		return err
+	}
+	// TODO: Send the wire
+	return nil
+}
+
+func (self *Client) Publish(dup bool, qos uint8, retain bool, topic string, data string) error {
+	// TODO: id shold be considered
+	pub := NewPublishMessage(dup, qos, retain, topic, 0, []uint8(data))
+	self.SendMessage(pub)
+	return nil
+}
+
+func (self *Client) Subsclibe(topics []SubscribeTopic) error {
+	// TODO: id should be considered
+	sub := NewSubscribeMessage(0, topics)
+	self.SendMessage(sub)
+	return nil
+}
+
+func (self *Client) Disconnect() error {
+	return nil
+}
