@@ -211,18 +211,6 @@ var MQTT_3_1_1 *Protocol = &Protocol{
 	Level: 4,
 }
 
-type User struct {
-	Name   string
-	Passwd string
-}
-
-func NewUser(name, pass string) *User {
-	return &User{
-		Name:   name,
-		Passwd: pass,
-	}
-}
-
 type Will struct {
 	Topic   string
 	Message string
