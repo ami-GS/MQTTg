@@ -18,15 +18,6 @@ type Client struct {
 	User     *User
 }
 
-func (self *Client) SendMessage(m Message) error {
-	wire, err := m.GetWire()
-	if err != nil {
-		return err
-	}
-	// TODO: Send the wire
-	return nil
-}
-
 func (self *Client) Publish(dup bool, qos uint8, retain bool, topic string, data string) error {
 	// TODO: id shold be considered
 	pub := NewPublishMessage(dup, qos, retain, topic, 0, []uint8(data))
