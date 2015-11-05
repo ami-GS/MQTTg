@@ -21,20 +21,20 @@ type Client struct {
 func (self *Client) Publish(dup bool, qos uint8, retain bool, topic string, data string) error {
 	// TODO: id shold be considered
 	pub := NewPublishMessage(dup, qos, retain, topic, 0, []uint8(data))
-	err := self.SendMessage(pub)
+	err := self.Ct.SendMessage(pub)
 	return err
 }
 
 func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 	// TODO: id should be considered
 	sub := NewSubscribeMessage(0, topics)
-	err := self.SendMessage(sub)
+	err := self.Ct.SendMessage(sub)
 	return err
 }
 
 func (self *Client) Disconnect() error {
 	dc := NewDisconnectMessage()
-	err := self.SendMessage(dc)
+	err := self.Ct.SendMessage(dc)
 	return err
 }
 
