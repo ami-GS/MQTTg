@@ -30,3 +30,30 @@ func (self *Transport) ReadMessage() (Message, error) {
 
 	return m, nil
 }
+
+func (self *Transport) ReadLoop() error {
+	for {
+		m, err := self.ReadMessage()
+		if err != nil {
+			return err
+		}
+
+		switch message := m.(type) {
+		case *ConnectMessage:
+		case *ConnackMessage:
+		case *PublishMessage:
+		case *PubackMessage:
+		case *PubrecMessage:
+		case *PubrelMessage:
+		case *PubcompMessage:
+		case *SubscribeMessage:
+		case *SubackMessage:
+		case *UnsubscribeMessage:
+		case *UnsubackMessage:
+		case *PingreqMessage:
+		case *PingrespMessage:
+		case *DisconnectMessage:
+		}
+
+	}
+}

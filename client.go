@@ -38,29 +38,3 @@ func (self *Client) Disconnect() error {
 	return err
 }
 
-func (self *Client) ReadLoop() error {
-	for {
-		m, err := self.Ct.ReadMessage()
-		if err != nil {
-			return err
-		}
-
-		switch message := m.(type) {
-		case *ConnectMessage:
-		case *ConnackMessage:
-		case *PublishMessage:
-		case *PubackMessage:
-		case *PubrecMessage:
-		case *PubrelMessage:
-		case *PubcompMessage:
-		case *SubscribeMessage:
-		case *SubackMessage:
-		case *UnsubscribeMessage:
-		case *UnsubackMessage:
-		case *PingreqMessage:
-		case *PingrespMessage:
-		case *DisconnectMessage:
-		}
-
-	}
-}
