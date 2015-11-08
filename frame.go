@@ -714,8 +714,8 @@ func ParseSubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
 
 type UnsubscribeMessage struct {
 	*FixedHeader
-	PacketID uint16
-	Topics   [][]uint8
+	PacketID   uint16
+	TopicNames [][]uint8
 }
 
 func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
@@ -729,21 +729,21 @@ func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
 			false, 0, false,
 			uint32(length),
 		),
-		PacketID: id,
-		Topics:   topics,
+		PacketID:   id,
+		TopicNames: topics,
 	}
 }
 
 func (self *UnsubscribeMessage) GetWire() ([]byte, error) {
 	allLen := 0
-	for _, v := range self.Topics {
+	for _, v := range self.TopicNames {
 		allLen += len(v)
 	}
-	wire := make([]byte, 2+2*len(self.Topics)+allLen)
+	wire := make([]byte, 2+2*len(self.TopicNames)+allLen)
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 
 	cursor := 2
-	for _, v := range self.Topics {
+	for _, v := range self.TopicNames {
 		binary.BigEndian.PutUint16(wire, uint16(len(v)))
 		cursor += 2
 
@@ -764,7 +764,7 @@ func ParseUnsubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	allLen := len(wire)
 	for i := 2; i < allLen; {
 		topicLen := int(binary.BigEndian.Uint16(wire[i : i+2]))
-		m.Topics = append(m.Topics, wire[i+2:i+2+topicLen])
+		m.TopicNames = append(m.TopicNames, wire[i+2:i+2+topicLen])
 		i += 2 + topicLen
 	}
 	return m, nil
