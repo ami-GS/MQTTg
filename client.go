@@ -13,9 +13,22 @@ func NewUser(name, pass string) *User {
 }
 
 type Client struct {
-	Ct       *Transport
-	ClientID string
-	User     *User
+	Ct        *Transport
+	ClientID  string
+	User      *User
+	KeepAlive uint16
+	Will      Will
+}
+
+func NewClient(t *Transport, id string, user *User, keepAlive uint16, will *Will) *Client {
+	// TODO: when id is empty, then apply random
+	return &Client{
+		Ct:        t,
+		ClientID:  id,
+		User:      user,
+		KeepAlive: keepAlive,
+		Will:      will,
+	}
 }
 
 func (self *Client) Publish(dup bool, qos uint8, retain bool, topic string, data string) error {
