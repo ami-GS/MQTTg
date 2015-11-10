@@ -17,7 +17,7 @@ type Client struct {
 	ClientID  string
 	User      *User
 	KeepAlive uint16
-	Will      Will
+	Will      *Will
 }
 
 func NewClient(t *Transport, id string, user *User, keepAlive uint16, will *Will) *Client {

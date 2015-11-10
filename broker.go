@@ -31,11 +31,11 @@ func (self *Broker) ReadLoop() error {
 			self.Clients[message.ClientID] = NewClient(self.Bt, message.ClientID,
 				message.User, message.KeepAlive, message.Will)
 			sessionPresent := false
-			if message.ConnectFlag&CleanSession != CleanSession {
+			if message.Flags&CleanSession != CleanSession {
 				// TODO: Is it better to check disconnect or not?
 				_, exist := self.Clients[message.ClientID]
 				//If the Server has stored Session state, it MUST set Session Present to 1
-				if exist == nil {
+				if exist {
 					sessionPresent = true
 				}
 			}
