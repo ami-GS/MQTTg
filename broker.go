@@ -8,7 +8,7 @@ type Broker struct {
 
 func (self *Broker) ReadLoop() error {
 	for {
-		m, err := self.Bt.ReadMessage()
+		m, addr, err := self.Bt.ReadMessageFrom()
 		if err != nil {
 			return err
 		}
@@ -36,7 +36,7 @@ func (self *Broker) ReadLoop() error {
 			// continue
 
 			// CHECK: Is self.Bt needed?. Is nil enough?
-			self.Clients[message.ClientID] = NewClient(self.Bt, message.ClientID,
+			self.Clients[message.ClientID] = NewClient(self.Bt, addr, message.ClientID,
 				message.User, message.KeepAlive, message.Will)
 			sessionPresent := false
 			if message.Flags&CleanSession != CleanSession {

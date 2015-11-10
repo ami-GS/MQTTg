@@ -1,5 +1,9 @@
 package MQTTg
 
+import (
+	"net"
+)
+
 type User struct {
 	Name   string
 	Passwd string
@@ -14,16 +18,18 @@ func NewUser(name, pass string) *User {
 
 type Client struct {
 	Ct        *Transport
+	Addr      *net.UDPAddr
 	ClientID  string
 	User      *User
 	KeepAlive uint16
 	Will      *Will
 }
 
-func NewClient(t *Transport, id string, user *User, keepAlive uint16, will *Will) *Client {
+func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
 	// TODO: when id is empty, then apply random
 	return &Client{
 		Ct:        t,
+		Addr:      addr,
 		ClientID:  id,
 		User:      user,
 		KeepAlive: keepAlive,
@@ -53,7 +59,7 @@ func (self *Client) Disconnect() error {
 
 func (self *Client) ReadLoop() error {
 	for {
-		m, err := self.Ct.ReadMessage()
+		m, _, err := self.Ct.ReadMessageFrom()
 		if err != nil {
 			return err
 		}

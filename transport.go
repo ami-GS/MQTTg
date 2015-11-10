@@ -18,16 +18,16 @@ func (self *Transport) SendMessage(m Message) error {
 	return nil
 }
 
-func (self *Transport) ReadMessage() (Message, error) {
+func (self *Transport) ReadMessageFrom() (Message, *net.UDPAddr, error) {
 	wire := make([]byte, 65535) //TODO: should be optimized
-	len, err := self.conn.Read(wire)
+	len, addr, err := self.conn.ReadFromUDP(wire)
 	if err != nil {
-		return nil, err
+		return nil, addr, err
 	}
 	m, err := ReadFrame(wire[:len])
 	if err != nil {
-		return nil, err
+		return nil, addr, err
 	}
 
-	return m, nil
+	return m, addr, nil
 }
