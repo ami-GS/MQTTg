@@ -27,6 +27,14 @@ func (self *Broker) ReadLoop() error {
 			// Connack(false, ServerUnavailable)
 			// continue
 
+			// if message.User.Name and if message.User.Password
+			// Connack(false, BadUserNameOrPassword)
+			// continue
+
+			// if authorized
+			// Connack(false, NotAuthorized)
+			// continue
+
 			// CHECK: Is self.Bt needed?. Is nil enough?
 			self.Clients[message.ClientID] = NewClient(self.Bt, message.ClientID,
 				message.User, message.KeepAlive, message.Will)
