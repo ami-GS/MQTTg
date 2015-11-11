@@ -67,20 +67,32 @@ func (self *Client) ReadLoop() error {
 		case *ConnectMessage:
 		case *ConnackMessage:
 		case *PublishMessage:
+			if message.QoS == 3 {
+				// error
+				// close connection
+				continue
+			}
+
 			if message.Dup {
 				// re-delivered
 			} else if message.Dup {
 				// first time delivery
 			}
 
+			if message.Retain {
+				// retained message comes
+			} else {
+				// non retained message
+			}
+
 			switch message.QoS {
 			case 0:
 			case 1:
+				Puback()
 			case 2:
-			case 3:
-				// error
-				// close connection
+				Pubrec()
 			}
+
 		case *PubackMessage:
 		case *PubrecMessage:
 		case *PubrelMessage:

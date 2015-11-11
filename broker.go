@@ -50,20 +50,37 @@ func (self *Broker) ReadLoop() error {
 			Connack(sessionPresent, Accepted)
 		case *ConnackMessage:
 		case *PublishMessage:
+			if message.QoS == 3 {
+				// error
+				// close connection
+				continue
+			}
+
 			if message.Dup {
 				// re-delivered
-			} else if message.Dup {
+			} else {
 				// first time delivery
+			}
+
+			if message.Retain {
+				// store the application message to designated topic
+				if len(message.Payload) == 0 {
+					// discard(remove) retained message
+				}
+
+				if message.QoS == 0 {
+					// discard retained message
+				}
 			}
 
 			switch message.QoS {
 			case 0:
 			case 1:
+				Puback()
 			case 2:
-			case 3:
-				// error
-				// close connection
+				Pubrec()
 			}
+
 		case *PubackMessage:
 		case *PubrecMessage:
 		case *PubrelMessage:
