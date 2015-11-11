@@ -74,17 +74,23 @@ func (self *Broker) ReadLoop() error {
 			}
 
 			switch message.QoS {
+			// in any case, Dub must be 0
 			case 0:
 			case 1:
-				Puback()
+				Puback(message.PacketID)
 			case 2:
-				Pubrec()
+				Pubrec(message.PacketID)
 			}
 
 		case *PubackMessage:
+			// acknowledge the sent Publish packet
 		case *PubrecMessage:
+			// acknowledge the sent Publish packet
+			Pubrel(message.PacketID)
 		case *PubrelMessage:
+			Pubcomp(message.PacketID)
 		case *PubcompMessage:
+			// acknowledge the sent Pubrel packet
 		case *SubscribeMessage:
 		case *SubackMessage:
 		case *UnsubscribeMessage:
