@@ -523,7 +523,7 @@ func NewPubrelMessage(id uint16) *PubrelMessage {
 	return &PubrelMessage{
 		FixedHeader: NewFixedHeader(
 			Pubrel,
-			false, 0, false,
+			false, 1, false,
 			2,
 		),
 		PacketID: id,
