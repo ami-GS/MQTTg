@@ -605,7 +605,7 @@ func NewSubscribeMessage(id uint16, topics []SubscribeTopic) *SubscribeMessage {
 	return &SubscribeMessage{
 		FixedHeader: NewFixedHeader(
 			Subscribe,
-			false, 0, false,
+			false, 1, false,
 			uint32(length),
 		),
 		PacketID:        id,
@@ -726,7 +726,7 @@ func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
 	return &UnsubscribeMessage{
 		FixedHeader: NewFixedHeader(
 			Unsubscribe,
-			false, 0, false,
+			false, 1, false,
 			uint32(length),
 		),
 		PacketID:   id,
