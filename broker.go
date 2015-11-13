@@ -1,8 +1,13 @@
 package MQTTg
 
+import (
+	"net"
+)
+
 type Broker struct {
-	Bt        *Transport
-	Clients   map[string]*Client // map[ClientIDs]*Client
+	Bt *Transport
+	// TODO: check whether not good to use addr as key
+	Clients   map[*net.UDPAddr]*Client // map[addr]*Client
 	TopicRoot *TopicNode
 }
 
@@ -36,12 +41,12 @@ func (self *Broker) ReadLoop() error {
 			// continue
 
 			// CHECK: Is self.Bt needed?. Is nil enough?
-			self.Clients[message.ClientID] = NewClient(self.Bt, addr, message.ClientID,
+			self.Clients[addr] = NewClient(self.Bt, addr, message.ClientID,
 				message.User, message.KeepAlive, message.Will)
 			sessionPresent := false
 			if message.Flags&CleanSession != CleanSession {
 				// TODO: Is it better to check disconnect or not?
-				_, exist := self.Clients[message.ClientID]
+				_, exist := self.Clients[addr]
 				//If the Server has stored Session state, it MUST set Session Present to 1
 				if exist {
 					sessionPresent = true
