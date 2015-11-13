@@ -31,13 +31,19 @@ func (self *TopicNode) GetTopicNodes(topic string) []*TopicNode {
 
 }
 
-func (self *TopicNode) ApplySubscriber(topic, clientID string, qos uint8) error {
+func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) (map[string]string, SubscribeReturnCode) {
 	// find topic edge and apply the clientID
 	edges := self.GetTopicNodes(topic)
+	retains := make(map[string]string)
 	for _, edge := range edges {
 		edge.Subscribers[clientID] = qos
+		if len(edge.RetainMessage) > 0 {
+			// TODO: this is only for one topic,
+			// this should be adjust for wildcard
+			retains[topic] = edge.RetainMessage
+		}
 	}
-	return nil
+	return retains, SubscribeReturnCode(qos)
 }
 
 func (self *TopicNode) ApplyRetain(topic, retain string) error {
