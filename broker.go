@@ -97,6 +97,25 @@ func (self *Broker) ReadLoop() error {
 		case *PubcompMessage:
 			// acknowledge the sent Pubrel packet
 		case *SubscribeMessage:
+			// TODO: check The wild card is permitted
+			codes := make([]SubscribeReturnCode, len(message.SubscribeTopics))
+			for i, subTopic := range message.SubscribeTopics {
+				// TODO: need to validate wheter there are same topics or not
+				client, ok := self.Clients[addr]
+				if ok {
+					retains, code := self.TopicRoot.ApplySubscriber(client.ClientID, string(subTopic.Topic), subTopic.QoS)
+					codes[i] = code
+					if len(retains) > 0 {
+						for k, v := range retains {
+							//Publish(k,v)
+						}
+					}
+				} else {
+					codes[i] = SubscribeFailure // TODO: correct?
+				}
+
+			}
+			Suback(message.PacketID, codes)
 		case *SubackMessage:
 		case *UnsubscribeMessage:
 		case *UnsubackMessage:
