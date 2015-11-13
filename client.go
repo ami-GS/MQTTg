@@ -23,6 +23,7 @@ type Client struct {
 	User      *User
 	KeepAlive uint16
 	Will      *Will
+	SubTopics []SubscribeTopic
 }
 
 func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
@@ -48,6 +49,9 @@ func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 	// TODO: id should be considered
 	sub := NewSubscribeMessage(0, topics)
 	err := self.Ct.SendMessage(sub)
+	if err == nil {
+		self.SubTopics = append(self.SubTopics, topics...)
+	}
 	return err
 }
 
