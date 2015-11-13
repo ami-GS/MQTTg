@@ -35,6 +35,7 @@ func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive
 		User:      user,
 		KeepAlive: keepAlive,
 		Will:      will,
+		SubTopics: make([]SubscribeTopic, 0),
 	}
 }
 
