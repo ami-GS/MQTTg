@@ -105,6 +105,7 @@ func (self *Broker) ReadLoop() error {
 				if ok {
 					retains, code := self.TopicRoot.ApplySubscriber(client.ClientID, string(subTopic.Topic), subTopic.QoS)
 					codes[i] = code
+					client.AckSubscribeTopic(subTopic, code)
 					if len(retains) > 0 {
 						for k, v := range retains {
 							//Publish(k,v)

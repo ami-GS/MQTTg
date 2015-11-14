@@ -17,26 +17,38 @@ func NewUser(name, pass string) *User {
 }
 
 type Client struct {
-	Ct        *Transport
-	Addr      *net.UDPAddr
-	ClientID  string
-	User      *User
-	KeepAlive uint16
-	Will      *Will
-	SubTopics []SubscribeTopic
+	Ct            *Transport
+	Addr          *net.UDPAddr
+	ClientID      string
+	User          *User
+	KeepAlive     uint16
+	Will          *Will
+	UnackedTopics []SubscribeTopic
+	SubTopics     []SubscribeTopic
 }
 
 func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
 	// TODO: when id is empty, then apply random
 	return &Client{
-		Ct:        t,
-		Addr:      addr,
-		ClientID:  id,
-		User:      user,
-		KeepAlive: keepAlive,
-		Will:      will,
-		SubTopics: make([]SubscribeTopic, 0),
+		Ct:            t,
+		Addr:          addr,
+		ClientID:      id,
+		User:          user,
+		KeepAlive:     keepAlive,
+		Will:          will,
+		UnackedTopics: make([]SubscribeTopic, 0),
+		SubTopics:     make([]SubscribeTopic, 0),
 	}
+}
+
+func (self *Client) AckSubscribeTopic(topic SubscribeTopic, code SubscribeReturnCode) error {
+	if code != SubscribeFailure {
+		topic.QoS = uint8(code)
+		self.SubTopics = append(self.SubTopics, topic)
+	} else {
+		//failed
+	}
+	return nil
 }
 
 func (self *Client) Publish(dup bool, qos uint8, retain bool, topic string, data string) error {
@@ -51,7 +63,7 @@ func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 	sub := NewSubscribeMessage(0, topics)
 	err := self.Ct.SendMessage(sub)
 	if err == nil {
-		self.SubTopics = append(self.SubTopics, topics...)
+		self.UnackedTopics = append(self.UnackedTopics, topics...)
 	}
 	return err
 }
@@ -110,6 +122,10 @@ func (self *Client) ReadLoop() error {
 			// acknowledge the sent Pubrel packet
 		case *SubscribeMessage:
 		case *SubackMessage:
+			// acknowledge the sent subscribe packet
+			for i, code := range message.ReturnCodes {
+				_ = self.AckSubscribeTopic(self.UnackedTopics[i], code)
+			}
 		case *UnsubscribeMessage:
 		case *UnsubackMessage:
 		case *PingreqMessage:
