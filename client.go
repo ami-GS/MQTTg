@@ -126,6 +126,7 @@ func (self *Client) ReadLoop() error {
 			}
 		case *UnsubscribeMessage:
 		case *UnsubackMessage:
+			// acknowledged the sent unsubscribe packet
 		case *PingreqMessage:
 		case *PingrespMessage:
 		case *DisconnectMessage:

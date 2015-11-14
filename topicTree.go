@@ -46,6 +46,13 @@ func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) (map[s
 	return retains, SubscribeReturnCode(qos)
 }
 
+func (self *TopicNode) DeleteSubscriber(clientID, topic string) error {
+	edges := self.GetTopicNodes(topic)
+	for _, edge := range edges {
+		delete(edge.Subscribers, clientID)
+	}
+}
+
 func (self *TopicNode) ApplyRetain(topic, retain string) error {
 	edges := self.GetTopicNodes(topic)
 	for _, edge := range edges {

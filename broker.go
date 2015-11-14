@@ -120,6 +120,28 @@ func (self *Broker) ReadLoop() error {
 			Suback(message.PacketID, codes)
 		case *SubackMessage:
 		case *UnsubscribeMessage:
+			client, ok := self.Clients[addr]
+			if !ok {
+				continue // TODO: ?
+			}
+			if len(message.TopicNames) == 0 {
+				// protocol violation
+			}
+			// TODO: optimize here
+			result := []SubscribeTopic{}
+			for i, t := range client.SubTopics {
+				del := false
+				for j, name := range message.TopicNames {
+					if t.Topic == name {
+						del = true
+					}
+				}
+				if !del {
+					result = append(result, t)
+				}
+			}
+			client.SubTopics = result
+			Unsuback(message.PacketID)
 		case *UnsubackMessage:
 		case *PingreqMessage:
 			// Pingresp
