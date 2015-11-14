@@ -579,14 +579,16 @@ func ParsePubcompMessage(fh *FixedHeader, wire []byte) (Message, error) {
 }
 
 type SubscribeTopic struct {
-	Topic []uint8
-	QoS   uint8
+	Acknowledge bool
+	Topic       []uint8
+	QoS         uint8
 }
 
 func NewSubscribeTopic(topic []uint8, qos uint8) *SubscribeTopic {
 	return &SubscribeTopic{
-		Topic: topic,
-		QoS:   qos,
+		Acknowledge: false,
+		Topic:       topic,
+		QoS:         qos,
 	}
 }
 

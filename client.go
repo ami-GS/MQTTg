@@ -17,34 +17,32 @@ func NewUser(name, pass string) *User {
 }
 
 type Client struct {
-	Ct            *Transport
-	Addr          *net.UDPAddr
-	ClientID      string
-	User          *User
-	KeepAlive     uint16
-	Will          *Will
-	UnackedTopics []SubscribeTopic
-	SubTopics     []SubscribeTopic
+	Ct        *Transport
+	Addr      *net.UDPAddr
+	ClientID  string
+	User      *User
+	KeepAlive uint16
+	Will      *Will
+	SubTopics []SubscribeTopic
 }
 
 func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
 	// TODO: when id is empty, then apply random
 	return &Client{
-		Ct:            t,
-		Addr:          addr,
-		ClientID:      id,
-		User:          user,
-		KeepAlive:     keepAlive,
-		Will:          will,
-		UnackedTopics: make([]SubscribeTopic, 0),
-		SubTopics:     make([]SubscribeTopic, 0),
+		Ct:        t,
+		Addr:      addr,
+		ClientID:  id,
+		User:      user,
+		KeepAlive: keepAlive,
+		Will:      will,
+		SubTopics: make([]SubscribeTopic, 0),
 	}
 }
 
-func (self *Client) AckSubscribeTopic(topic SubscribeTopic, code SubscribeReturnCode) error {
+func (self *Client) AckSubscribeTopic(order int, code SubscribeReturnCode) error {
 	if code != SubscribeFailure {
-		topic.QoS = uint8(code)
-		self.SubTopics = append(self.SubTopics, topic)
+		self.SubTopics[order].QoS = uint8(code)
+		self.SubTopics[order].Acknowledge = true
 	} else {
 		//failed
 	}
@@ -63,7 +61,7 @@ func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 	sub := NewSubscribeMessage(0, topics)
 	err := self.Ct.SendMessage(sub)
 	if err == nil {
-		self.UnackedTopics = append(self.UnackedTopics, topics...)
+		self.SubTopics = append(self.SubTopics, topics...)
 	}
 	return err
 }
@@ -124,7 +122,7 @@ func (self *Client) ReadLoop() error {
 		case *SubackMessage:
 			// acknowledge the sent subscribe packet
 			for i, code := range message.ReturnCodes {
-				_ = self.AckSubscribeTopic(self.UnackedTopics[i], code)
+				_ = self.AckSubscribeTopic(i, code)
 			}
 		case *UnsubscribeMessage:
 		case *UnsubackMessage:
