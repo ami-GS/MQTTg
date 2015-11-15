@@ -578,17 +578,26 @@ func ParsePubcompMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	return m, nil
 }
 
+type SubscribeState uint8
+
+const (
+	SubscribeNonAck SubscribeState = iota
+	SubscribeAck
+	UnSubscribeNonAck
+	UnSubscribeAck
+)
+
 type SubscribeTopic struct {
-	Acknowledge bool
-	Topic       []uint8
-	QoS         uint8
+	State SubscribeState
+	Topic []uint8
+	QoS   uint8
 }
 
 func NewSubscribeTopic(topic []uint8, qos uint8) *SubscribeTopic {
 	return &SubscribeTopic{
-		Acknowledge: false,
-		Topic:       topic,
-		QoS:         qos,
+		State: SubscribeNonAck,
+		Topic: topic,
+		QoS:   qos,
 	}
 }
 
