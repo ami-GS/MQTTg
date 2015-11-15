@@ -42,7 +42,7 @@ func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive
 func (self *Client) AckSubscribeTopic(order int, code SubscribeReturnCode) error {
 	if code != SubscribeFailure {
 		self.SubTopics[order].QoS = uint8(code)
-		self.SubTopics[order].Acknowledge = true
+		self.SubTopics[order].State = SubscribeAck
 	} else {
 		//failed
 	}
@@ -63,6 +63,27 @@ func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 	if err == nil {
 		self.SubTopics = append(self.SubTopics, topics...)
 	}
+	return err
+}
+
+func (self *Client) Unsubscribe(topics [][]uint8) error {
+	for i, t := range self.SubTopics {
+		exist := false
+		for j, name := range topics {
+			if string(t.Topic) == string(name) {
+				exist = true
+			}
+		}
+		if exist {
+			t.State = UnSubscribeNonAck
+		} else {
+			// error? or warnning
+			// return error
+		}
+	}
+	// id should be conidered
+	unsub := NewUnsubscribeMessage(0, topics)
+	err := self.Ct.SendMessage(unsub)
 	return err
 }
 

@@ -51,6 +51,7 @@ func (self *TopicNode) DeleteSubscriber(clientID, topic string) error {
 	for _, edge := range edges {
 		delete(edge.Subscribers, clientID)
 	}
+	return nil
 }
 
 func (self *TopicNode) ApplyRetain(topic, retain string) error {

@@ -106,7 +106,10 @@ func (self *Broker) ReadLoop() error {
 					retains, code := self.TopicRoot.ApplySubscriber(client.ClientID, string(subTopic.Topic), subTopic.QoS)
 					codes[i] = code
 					client.SubTopics = append(client.SubTopics,
-						SubscribeTopic{true, subTopic.Topic, uint8(code)})
+						SubscribeTopic{SubscribeAck,
+							subTopic.Topic,
+							uint8(code),
+						})
 					if len(retains) > 0 {
 						for k, v := range retains {
 							//Publish(k,v)
@@ -132,7 +135,7 @@ func (self *Broker) ReadLoop() error {
 			for i, t := range client.SubTopics {
 				del := false
 				for j, name := range message.TopicNames {
-					if t.Topic == name {
+					if string(t.Topic) == string(name) {
 						del = true
 					}
 				}
