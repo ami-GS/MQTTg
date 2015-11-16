@@ -19,7 +19,7 @@ func NewUser(name, pass string) *User {
 type Client struct {
 	Ct        *Transport
 	Addr      *net.UDPAddr
-	ClientID  string
+	ID        string
 	User      *User
 	KeepAlive uint16
 	Will      *Will
@@ -31,7 +31,7 @@ func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive
 	return &Client{
 		Ct:        t,
 		Addr:      addr,
-		ClientID:  id,
+		ID:        id,
 		User:      user,
 		KeepAlive: keepAlive,
 		Will:      will,

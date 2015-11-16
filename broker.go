@@ -103,7 +103,7 @@ func (self *Broker) ReadLoop() error {
 				// TODO: need to validate wheter there are same topics or not
 				client, ok := self.Clients[addr]
 				if ok {
-					retains, code := self.TopicRoot.ApplySubscriber(client.ClientID, string(subTopic.Topic), subTopic.QoS)
+					retains, code := self.TopicRoot.ApplySubscriber(client.ID, string(subTopic.Topic), subTopic.QoS)
 					codes[i] = code
 					client.SubTopics = append(client.SubTopics,
 						SubscribeTopic{SubscribeAck,
