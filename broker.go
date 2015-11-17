@@ -53,7 +53,6 @@ func (self *Broker) ReadLoop() error {
 				}
 			}
 			Connack(sessionPresent, Accepted)
-		case *ConnackMessage:
 		case *PublishMessage:
 			if message.QoS == 3 {
 				// error
@@ -121,7 +120,6 @@ func (self *Broker) ReadLoop() error {
 
 			}
 			Suback(message.PacketID, codes)
-		case *SubackMessage:
 		case *UnsubscribeMessage:
 			client, ok := self.Clients[addr]
 			if !ok {
@@ -145,15 +143,15 @@ func (self *Broker) ReadLoop() error {
 			}
 			client.SubTopics = result
 			Unsuback(message.PacketID)
-		case *UnsubackMessage:
 		case *PingreqMessage:
 			// Pingresp
 			Pingresp()
-		case *PingrespMessage:
 		case *DisconnectMessage:
 			// close the client
 			// MUST discard WILL message
 			// associate with the connection
+		default:
+			// when invalid messages come
 		}
 	}
 }

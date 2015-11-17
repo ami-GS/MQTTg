@@ -107,7 +107,6 @@ func (self *Client) ReadLoop() error {
 			return err
 		}
 		switch message := m.(type) {
-		case *ConnectMessage:
 		case *ConnackMessage:
 		case *PublishMessage:
 			if message.QoS == 3 {
@@ -146,18 +145,16 @@ func (self *Client) ReadLoop() error {
 			Pubcomp(message.PacketID)
 		case *PubcompMessage:
 			// acknowledge the sent Pubrel packet
-		case *SubscribeMessage:
 		case *SubackMessage:
 			// acknowledge the sent subscribe packet
 			for i, code := range message.ReturnCodes {
 				_ = self.AckSubscribeTopic(i, code)
 			}
-		case *UnsubscribeMessage:
 		case *UnsubackMessage:
 			// acknowledged the sent unsubscribe packet
-		case *PingreqMessage:
 		case *PingrespMessage:
-		case *DisconnectMessage:
+		default:
+			// when invalid messages come
 		}
 	}
 }
