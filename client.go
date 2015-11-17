@@ -87,9 +87,16 @@ func (self *Client) Unsubscribe(topics [][]uint8) error {
 	return err
 }
 
+func (self *Client) Ping() error {
+	ping := NewPingreqMessage()
+	err := self.Ct.SendMessage(ping)
+	return err
+}
+
 func (self *Client) Disconnect() error {
 	dc := NewDisconnectMessage()
 	err := self.Ct.SendMessage(dc)
+	// TODO: close connection
 	return err
 }
 

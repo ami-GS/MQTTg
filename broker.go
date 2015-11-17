@@ -148,8 +148,12 @@ func (self *Broker) ReadLoop() error {
 		case *UnsubackMessage:
 		case *PingreqMessage:
 			// Pingresp
+			Pingresp()
 		case *PingrespMessage:
 		case *DisconnectMessage:
+			// close the client
+			// MUST discard WILL message
+			// associate with the connection
 		}
 	}
 }
