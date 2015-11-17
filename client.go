@@ -49,13 +49,6 @@ func (self *Client) AckSubscribeTopic(order int, code SubscribeReturnCode) error
 	return nil
 }
 
-func (self *Client) Publish(dup bool, qos uint8, retain bool, topic string, data string) error {
-	// TODO: id shold be considered
-	pub := NewPublishMessage(dup, qos, retain, topic, 0, []uint8(data))
-	err := self.Ct.SendMessage(pub)
-	return err
-}
-
 func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 	// TODO: id should be considered
 	sub := NewSubscribeMessage(0, topics)
