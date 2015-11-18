@@ -11,6 +11,22 @@ type Broker struct {
 	TopicRoot *TopicNode
 }
 
+func (self *Broker) Connack(sessionPresent bool, code ConnectReturnCode) error {
+	return nil
+}
+
+func (self *Broker) Suback(packetID uint16, codes []SubscribeReturnCode) error {
+	return nil
+}
+
+func (self *Broker) Unsuback(packetID uint16) error {
+	return nil
+}
+
+func (self *Broker) Pingresp() error {
+	return nil
+}
+
 func (self *Broker) ReadLoop() error {
 	for {
 		m, addr, err := self.Bt.ReadMessageFrom()
@@ -21,23 +37,23 @@ func (self *Broker) ReadLoop() error {
 		case *ConnectMessage:
 			if message.Protocol.Level != MQTT_3_1_1.Level {
 				// CHECK: Is false correct?
-				Connack(false, UnacceptableProtocolVersion)
+				// self.Connack(false, UnacceptableProtocolVersion)
 				continue
 			}
 			//if message.ClientIDs {} // TODO:check ID's validatino
-			// Connack(false, IdentifierRejected)
+			// self.Connack(false, IdentifierRejected)
 			// continue
 
 			//if self.status?
-			// Connack(false, ServerUnavailable)
+			// self.Connack(false, ServerUnavailable)
 			// continue
 
 			// if message.User.Name and if message.User.Password
-			// Connack(false, BadUserNameOrPassword)
+			// self.Connack(false, BadUserNameOrPassword)
 			// continue
 
 			// if authorized
-			// Connack(false, NotAuthorized)
+			// self.Connack(false, NotAuthorized)
 			// continue
 
 			// CHECK: Is self.Bt needed?. Is nil enough?
@@ -52,7 +68,7 @@ func (self *Broker) ReadLoop() error {
 					sessionPresent = true
 				}
 			}
-			Connack(sessionPresent, Accepted)
+			self.Connack(sessionPresent, Accepted)
 		case *PublishMessage:
 			if message.QoS == 3 {
 				// error
@@ -81,18 +97,17 @@ func (self *Broker) ReadLoop() error {
 			// in any case, Dub must be 0
 			case 0:
 			case 1:
-				Puback(message.PacketID)
+				self.Bt.Puback(message.PacketID)
 			case 2:
-				Pubrec(message.PacketID)
+				self.Bt.Pubrec(message.PacketID)
 			}
-
 		case *PubackMessage:
 			// acknowledge the sent Publish packet
 		case *PubrecMessage:
 			// acknowledge the sent Publish packet
-			Pubrel(message.PacketID)
+			self.Bt.Pubrel(message.PacketID)
 		case *PubrelMessage:
-			Pubcomp(message.PacketID)
+			self.Bt.Pubcomp(message.PacketID)
 		case *PubcompMessage:
 			// acknowledge the sent Pubrel packet
 		case *SubscribeMessage:
@@ -119,7 +134,7 @@ func (self *Broker) ReadLoop() error {
 				}
 
 			}
-			Suback(message.PacketID, codes)
+			self.Suback(message.PacketID, codes)
 		case *UnsubscribeMessage:
 			client, ok := self.Clients[addr]
 			if !ok {
@@ -142,10 +157,10 @@ func (self *Broker) ReadLoop() error {
 				}
 			}
 			client.SubTopics = result
-			Unsuback(message.PacketID)
+			self.Unsuback(message.PacketID)
 		case *PingreqMessage:
 			// Pingresp
-			Pingresp()
+			self.Pingresp()
 		case *DisconnectMessage:
 			// close the client
 			// MUST discard WILL message
