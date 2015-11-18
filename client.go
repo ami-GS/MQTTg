@@ -124,18 +124,18 @@ func (self *Client) ReadLoop() error {
 			// in any case, Dub must be 0
 			case 0:
 			case 1:
-				Puback(message.PacketID)
+				self.Ct.Puback(message.PacketID)
 			case 2:
-				Pubrec(message.PacketID)
+				self.Ct.Pubrec(message.PacketID)
 			}
 
 		case *PubackMessage:
 			// acknowledge the sent Publish packet
 		case *PubrecMessage:
 			// acknowledge the sent Publish packet
-			Pubrel(message.PacketID)
+			self.Ct.Pubrel(message.PacketID)
 		case *PubrelMessage:
-			Pubcomp(message.PacketID)
+			self.Ct.Pubcomp(message.PacketID)
 		case *PubcompMessage:
 			// acknowledge the sent Pubrel packet
 		case *SubackMessage:
