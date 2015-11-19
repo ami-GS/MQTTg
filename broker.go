@@ -12,19 +12,27 @@ type Broker struct {
 }
 
 func (self *Broker) Connack(sessionPresent bool, code ConnectReturnCode) error {
-	return nil
+	connack := NewConnackMessage(sessionPresent, code)
+	err := self.Bt.SendMessage(connack)
+	return err
 }
 
 func (self *Broker) Suback(packetID uint16, codes []SubscribeReturnCode) error {
-	return nil
+	suback := NewSubackMessage(packetID, codes)
+	err := self.Bt.SendMessage(suback)
+	return err
 }
 
 func (self *Broker) Unsuback(packetID uint16) error {
-	return nil
+	unsuback := NewUnsubackMessage(packetID)
+	err := self.Bt.SendMessage(suback)
+	return err
 }
 
 func (self *Broker) Pingresp() error {
-	return nil
+	ping := NewPingrespMessage()
+	err := self.Bt.SendMessage(ping)
+	return err
 }
 
 func (self *Broker) ReadLoop() error {
