@@ -9,13 +9,13 @@ type Transport struct {
 	//sm   *Sender
 }
 
-func (self *Transport) SendMessage(m Message) error {
+func (self *Transport) SendMessage(m Message, distAddr *net.UDPAddr) error {
 	wire, err := m.GetWire()
 	if err != nil {
 		return err
 	}
-	// TODO: Send the wire
-	return nil
+	_, err = self.conn.WriteToUDP(wire, distAddr)
+	return err
 }
 
 func (self *Transport) ReadMessageFrom() (Message, *net.UDPAddr, error) {
