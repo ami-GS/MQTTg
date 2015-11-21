@@ -2,6 +2,8 @@ package MQTTg
 
 import (
 	"net"
+	"strconv"
+	"strings"
 )
 
 type User struct {
@@ -17,13 +19,14 @@ func NewUser(name, pass string) *User {
 }
 
 type Client struct {
-	Ct        *Transport
-	Addr      *net.UDPAddr
-	ID        string
-	User      *User
-	KeepAlive uint16
-	Will      *Will
-	SubTopics []SubscribeTopic
+	Ct         *Transport
+	Addr       *net.UDPAddr
+	RemoteAddr *net.UDPAddr
+	ID         string
+	User       *User
+	KeepAlive  uint16
+	Will       *Will
+	SubTopics  []SubscribeTopic
 }
 
 func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
@@ -46,6 +49,32 @@ func (self *Client) AckSubscribeTopic(order int, code SubscribeReturnCode) error
 	} else {
 		//failed
 	}
+	return nil
+}
+
+func (self *Client) Connect(addPair string) error {
+	pair := strings.Split(addPair, ":")
+	if len(pair) != 2 {
+		return nil // TODO: apply error
+	}
+	port, err := strconv.Atoi(pair[1])
+	if err != nil {
+		return err
+	}
+	udpaddr := &net.UDPAddr{
+		IP:   net.IP(pair[0]),
+		Port: port,
+		Zone: "", // TODO: check
+	}
+	// TODO: local address might be input
+	conn, err := net.DialUDP("udp4", nil, udpaddr)
+	if err != nil {
+		return err
+	}
+	self.RemoteAddr = udpaddr
+	self.Ct.conn = conn
+	self.Ct.SendMessage(NewConnectMessage(10, "dummyID",
+		false, nil, NewUser("name", "pass")), udpaddr)
 	return nil
 }
 
