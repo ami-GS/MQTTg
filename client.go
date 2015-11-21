@@ -80,8 +80,7 @@ func (self *Client) Connect(addPair string) error {
 
 func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 	// TODO: id should be considered
-	sub := NewSubscribeMessage(0, topics)
-	err := self.Ct.SendMessage(sub)
+	err := self.Ct.SendMessage(NewSubscribeMessage(0, topics), self.RemoteAddr)
 	if err == nil {
 		self.SubTopics = append(self.SubTopics, topics...)
 	}
@@ -104,20 +103,17 @@ func (self *Client) Unsubscribe(topics [][]uint8) error {
 		}
 	}
 	// id should be conidered
-	unsub := NewUnsubscribeMessage(0, topics)
-	err := self.Ct.SendMessage(unsub)
+	err := self.Ct.SendMessage(NewUnsubscribeMessage(0, topics), self.RemoteAddr)
 	return err
 }
 
 func (self *Client) Ping() error {
-	ping := NewPingreqMessage()
-	err := self.Ct.SendMessage(ping)
+	err := self.Ct.SendMessage(NewPingreqMessage(), self.RemoteAddr)
 	return err
 }
 
 func (self *Client) Disconnect() error {
-	dc := NewDisconnectMessage()
-	err := self.Ct.SendMessage(dc)
+	err := self.Ct.SendMessage(NewDisconnectMessage(), self.RemoteAddr)
 	// TODO: close connection
 	return err
 }
