@@ -120,9 +120,13 @@ func (self *Client) Disconnect() error {
 
 func (self *Client) ReadLoop() error {
 	for {
-		m, _, err := self.Ct.ReadMessageFrom()
+		m, addr, err := self.Ct.ReadMessageFrom()
 		if err != nil {
 			return err
+		}
+		// TODO: the comparison should be deepequal?
+		if self.RemoteAddr != addr {
+			continue
 		}
 		switch message := m.(type) {
 		case *ConnackMessage:
