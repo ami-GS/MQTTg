@@ -31,24 +31,3 @@ func (self *Transport) ReadMessageFrom() (Message, *net.UDPAddr, error) {
 
 	return m, addr, nil
 }
-func (self *Transport) Publish(dup bool, qos uint8, retain bool, topic string, data string) error {
-	// TODO: id should be considered
-	pub := NewPublishMessage(dup, qos, retain, topic, 0, []uint8(data))
-	err := self.SendMessage(pub)
-	return err
-}
-func (self *Transport) Puback(packetID uint16) error {
-	return nil
-}
-
-func (self *Transport) Pubrec(packetID uint16) error {
-	return nil
-}
-
-func (self *Transport) Pubrel(packetID uint16) error {
-	return nil
-}
-
-func (self *Transport) Pubcomp(packetID uint16) error {
-	return nil
-}
