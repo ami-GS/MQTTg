@@ -5,7 +5,7 @@ import (
 )
 
 type Transport struct {
-	conn net.UDPConn
+	conn *net.UDPConn
 	//sm   *Sender
 }
 

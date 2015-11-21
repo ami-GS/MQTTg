@@ -88,9 +88,9 @@ func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 }
 
 func (self *Client) Unsubscribe(topics [][]uint8) error {
-	for i, t := range self.SubTopics {
+	for _, t := range self.SubTopics {
 		exist := false
-		for j, name := range topics {
+		for _, name := range topics {
 			if string(t.Topic) == string(name) {
 				exist = true
 			}

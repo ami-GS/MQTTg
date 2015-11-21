@@ -15,10 +15,11 @@ func (self *TopicNode) GetTopicNodes(topic string) []*TopicNode {
 	// this topic may have wildcard +*
 	parts := strings.Split(topic, "/")
 	nxt := self
+	exist := false
 	for i, part := range parts {
 		// TODO: this is only for one topic, this should be changed
 		bef := nxt
-		nxt, exist := bef.Nodes[part]
+		nxt, exist = bef.Nodes[part]
 		if !exist && i == len(parts)-1 {
 			bef.ApplyNewTopic(part)
 			nxt, _ = bef.Nodes[part]

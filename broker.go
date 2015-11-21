@@ -129,9 +129,9 @@ func (self *Broker) ReadLoop() error {
 			}
 			// TODO: optimize here
 			result := []SubscribeTopic{}
-			for i, t := range client.SubTopics {
+			for _, t := range client.SubTopics {
 				del := false
-				for j, name := range message.TopicNames {
+				for _, name := range message.TopicNames {
 					if string(t.Topic) == string(name) {
 						del = true
 					}
