@@ -123,8 +123,15 @@ func (self *Client) Ping() error {
 }
 
 func (self *Client) Disconnect() error {
-	err := self.Ct.SendMessage(NewDisconnectMessage(), self.RemoteAddr)
-	// TODO: close connection
+	if !self.IsConnecting {
+		return nil // TODO: apply error. like NOT_CONNECTED
+	}
+	err := self.SendMessage(NewDisconnectMessage())
+	if err != nil {
+		return err
+	}
+	err = self.Ct.conn.Close()
+	self.IsConnecting = false
 	return err
 }
 
