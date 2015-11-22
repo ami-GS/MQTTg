@@ -44,6 +44,14 @@ func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive
 	}
 }
 
+func (self *Client) SendMessage(m Message) error {
+	if !self.IsConnecting {
+		return nil // TODO: apply error. like NOT_CONNECTED
+	}
+	err := self.Ct.SendMessage(m, self.RemoteAddr)
+	return err
+}
+
 func (self *Client) AckSubscribeTopic(order int, code SubscribeReturnCode) error {
 	if code != SubscribeFailure {
 		self.SubTopics[order].QoS = uint8(code)
@@ -75,14 +83,14 @@ func (self *Client) Connect(addPair string) error {
 	}
 	self.RemoteAddr = udpaddr
 	self.Ct.conn = conn
-	self.Ct.SendMessage(NewConnectMessage(10, "dummyID",
-		false, nil, NewUser("name", "pass")), udpaddr)
+	self.SendMessage(NewConnectMessage(10, "dummyID",
+		false, nil, NewUser("name", "pass")))
 	return nil
 }
 
 func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 	// TODO: id should be considered
-	err := self.Ct.SendMessage(NewSubscribeMessage(0, topics), self.RemoteAddr)
+	err := self.SendMessage(NewSubscribeMessage(0, topics))
 	if err == nil {
 		self.SubTopics = append(self.SubTopics, topics...)
 	}
@@ -105,12 +113,12 @@ func (self *Client) Unsubscribe(topics [][]uint8) error {
 		}
 	}
 	// id should be conidered
-	err := self.Ct.SendMessage(NewUnsubscribeMessage(0, topics), self.RemoteAddr)
+	err := self.SendMessage(NewUnsubscribeMessage(0, topics))
 	return err
 }
 
 func (self *Client) Ping() error {
-	err := self.Ct.SendMessage(NewPingreqMessage(), self.RemoteAddr)
+	err := self.SendMessage(NewPingreqMessage())
 	return err
 }
 
@@ -156,18 +164,18 @@ func (self *Client) ReadLoop() error {
 			// in any case, Dub must be 0
 			case 0:
 			case 1:
-				self.Ct.SendMessage(NewPubackMessage(message.PacketID), self.RemoteAddr)
+				self.SendMessage(NewPubackMessage(message.PacketID))
 			case 2:
-				self.Ct.SendMessage(NewPubrecMessage(message.PacketID), self.RemoteAddr)
+				self.SendMessage(NewPubrecMessage(message.PacketID))
 			}
 
 		case *PubackMessage:
 			// acknowledge the sent Publish packet
 		case *PubrecMessage:
 			// acknowledge the sent Publish packet
-			self.Ct.SendMessage(NewPubrelMessage(message.PacketID), self.RemoteAddr)
+			self.SendMessage(NewPubrelMessage(message.PacketID))
 		case *PubrelMessage:
-			self.Ct.SendMessage(NewPubcompMessage(message.PacketID), self.RemoteAddr)
+			self.SendMessage(NewPubcompMessage(message.PacketID))
 		case *PubcompMessage:
 			// acknowledge the sent Pubrel packet
 		case *SubackMessage:
