@@ -19,26 +19,28 @@ func NewUser(name, pass string) *User {
 }
 
 type Client struct {
-	Ct         *Transport
-	Addr       *net.UDPAddr
-	RemoteAddr *net.UDPAddr
-	ID         string
-	User       *User
-	KeepAlive  uint16
-	Will       *Will
-	SubTopics  []SubscribeTopic
+	Ct           *Transport
+	IsConnecting bool
+	Addr         *net.UDPAddr
+	RemoteAddr   *net.UDPAddr
+	ID           string
+	User         *User
+	KeepAlive    uint16
+	Will         *Will
+	SubTopics    []SubscribeTopic
 }
 
 func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
 	// TODO: when id is empty, then apply random
 	return &Client{
-		Ct:        t,
-		Addr:      addr,
-		ID:        id,
-		User:      user,
-		KeepAlive: keepAlive,
-		Will:      will,
-		SubTopics: make([]SubscribeTopic, 0),
+		Ct:           t,
+		IsConnecting: false,
+		Addr:         addr,
+		ID:           id,
+		User:         user,
+		KeepAlive:    keepAlive,
+		Will:         will,
+		SubTopics:    make([]SubscribeTopic, 0),
 	}
 }
 
@@ -130,6 +132,7 @@ func (self *Client) ReadLoop() error {
 		}
 		switch message := m.(type) {
 		case *ConnackMessage:
+			self.IsConnecting = true
 		case *PublishMessage:
 			if message.QoS == 3 {
 				// error

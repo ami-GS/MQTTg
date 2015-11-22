@@ -146,6 +146,13 @@ func (self *Broker) ReadLoop() error {
 			// Pingresp
 			self.Bt.SendMessage(NewPingrespMessage(), addr)
 		case *DisconnectMessage:
+			client, ok := self.Clients[addr]
+			if !ok {
+				// TODO: emit error/warnning
+				continue
+			}
+			client.IsConnecting = false
+
 			// close the client
 			// MUST discard WILL message
 			// associate with the connection
