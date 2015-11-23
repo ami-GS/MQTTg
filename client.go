@@ -4,6 +4,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type User struct {
@@ -28,6 +29,7 @@ type Client struct {
 	KeepAlive    uint16
 	Will         *Will
 	SubTopics    []SubscribeTopic
+	PingBegin    time.Time
 }
 
 func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
@@ -119,6 +121,9 @@ func (self *Client) Unsubscribe(topics [][]uint8) error {
 
 func (self *Client) Ping() error {
 	err := self.SendMessage(NewPingreqMessage())
+	if err == nil {
+		self.PingBegin = time.Now()
+	}
 	return err
 }
 
@@ -193,6 +198,7 @@ func (self *Client) ReadLoop() error {
 		case *UnsubackMessage:
 			// acknowledged the sent unsubscribe packet
 		case *PingrespMessage:
+			elapsed := time.Since(self.PingBegin)
 		default:
 			// when invalid messages come
 		}
