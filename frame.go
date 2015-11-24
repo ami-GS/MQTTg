@@ -589,11 +589,11 @@ const (
 
 type SubscribeTopic struct {
 	State SubscribeState
-	Topic []uint8
+	Topic string
 	QoS   uint8
 }
 
-func NewSubscribeTopic(topic []uint8, qos uint8) *SubscribeTopic {
+func NewSubscribeTopic(topic string, qos uint8) *SubscribeTopic {
 	return &SubscribeTopic{
 		State: SubscribeNonAck,
 		Topic: topic,
@@ -637,9 +637,7 @@ func (self *SubscribeMessage) GetWire() ([]byte, error) {
 		binary.BigEndian.PutUint16(wire[cursor:], uint16(topicLen))
 		cursor += 2
 
-		for j, b := range []byte(v.Topic) {
-			wire[cursor+2+j] = b
-		}
+		copy(wire[cursor+2:cursor+2+topicLen], []uint8(v.Topic))
 		cursor += topicLen
 		wire[cursor] = v.QoS
 	}
@@ -655,7 +653,7 @@ func ParseSubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	allLen := len(wire)
 	for i := 2; i < allLen; {
 		topicLen := int(binary.BigEndian.Uint16(wire[i : i+2]))
-		topic := wire[i+2 : i+2+topicLen]
+		topic := string(wire[i+2 : i+2+topicLen])
 		m.SubscribeTopics = append(m.SubscribeTopics,
 			*NewSubscribeTopic(topic, wire[i+2+topicLen])) // check
 		i += 3 + topicLen
@@ -726,10 +724,10 @@ func ParseSubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
 type UnsubscribeMessage struct {
 	*FixedHeader
 	PacketID   uint16
-	TopicNames [][]uint8
+	TopicNames []string
 }
 
-func NewUnsubscribeMessage(id uint16, topics [][]uint8) *UnsubscribeMessage {
+func NewUnsubscribeMessage(id uint16, topics []string) *UnsubscribeMessage {
 	length := 2 + 2*len(topics)
 	for _, v := range topics {
 		length = len(v)
@@ -758,9 +756,7 @@ func (self *UnsubscribeMessage) GetWire() ([]byte, error) {
 		binary.BigEndian.PutUint16(wire, uint16(len(v)))
 		cursor += 2
 
-		for j, b := range v {
-			wire[cursor+j] = b
-		}
+		copy(wire[cursor:cursor+len(v)], []uint8(v))
 		cursor += len(v)
 	}
 
@@ -775,7 +771,7 @@ func ParseUnsubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	allLen := len(wire)
 	for i := 2; i < allLen; {
 		topicLen := int(binary.BigEndian.Uint16(wire[i : i+2]))
-		m.TopicNames = append(m.TopicNames, wire[i+2:i+2+topicLen])
+		m.TopicNames = append(m.TopicNames, string(wire[i+2:i+2+topicLen]))
 		i += 2 + topicLen
 	}
 	return m, nil

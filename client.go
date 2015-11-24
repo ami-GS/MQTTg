@@ -99,7 +99,7 @@ func (self *Client) Subsclibe(topics []SubscribeTopic) error {
 	return err
 }
 
-func (self *Client) Unsubscribe(topics [][]uint8) error {
+func (self *Client) Unsubscribe(topics []string) error {
 	for _, t := range self.SubTopics {
 		exist := false
 		for _, name := range topics {
