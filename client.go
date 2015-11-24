@@ -90,7 +90,7 @@ func (self *Client) Connect(addPair string) error {
 	return nil
 }
 
-func (self *Client) Subsclibe(topics []SubscribeTopic) error {
+func (self *Client) Subscribe(topics []SubscribeTopic) error {
 	// TODO: id should be considered
 	err := self.SendMessage(NewSubscribeMessage(0, topics))
 	if err == nil {
