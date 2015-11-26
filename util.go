@@ -28,15 +28,19 @@ func RemainEncode(dst []uint8, length uint32) int {
 	return i
 }
 
-func RemainDecode(wire []byte) (out uint32) {
+func RemainDecode(wire []byte) (uint32, error) {
 	multiplier := uint32(1)
-	out = uint32(wire[0] & 0x7f)
+	out := uint32(wire[0] & 0x7f)
 	for idx := 1; wire[idx]&0x80 == 0x80; idx++ {
 		out += uint32(wire[idx]&0x7f) * multiplier
 		multiplier *= 0x80
-		//if multiplier > 0x80*0x80*0x80 {
-		// TODO:error handling
-		//}
+		if multiplier > 2097152 {
+			return 0, MALFORMED_REMAIN_LENGTH
+			//TODO:error handling
+		}
+	}
+	return out, nil
+}
 	}
 	return
 }

@@ -120,7 +120,10 @@ func ParseFixedHeader(wire []byte) (*FixedHeader, error) {
 		qos = (wire[0] >> 1) & 0x03
 		retain = wire[0]&0x01 == 0x01
 	}
-	length := RemainDecode(wire[1:])
+	length, err := RemainDecode(wire[1:])
+	if err != nil {
+		return nil, err
+	}
 	h := NewFixedHeader(mType, dup, qos, retain, length)
 
 	return h, nil

@@ -144,6 +144,7 @@ func (self *Client) ReadLoop() error {
 	for {
 		m, addr, err := self.Ct.ReadMessageFrom()
 		if err != nil {
+			// TODO: only emit error not to stop this loop --> continue?
 			return err
 		}
 		// TODO: the comparison should be deepequal?
