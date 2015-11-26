@@ -41,6 +41,16 @@ func RemainDecode(wire []byte) (uint32, error) {
 	}
 	return out, nil
 }
+
+type MQTT_ERROR uint8 // for 256 errors
+
+const (
+	MALFORMED_REMAIN_LENGTH MQTT_ERROR = iota
+)
+
+func (e MQTT_ERROR) Error() string {
+	er_st := []string{
+		"MALFORMED_REMAIN_LENGTH",
 	}
-	return
+	return er_st[e]
 }
