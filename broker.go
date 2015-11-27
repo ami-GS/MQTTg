@@ -58,7 +58,7 @@ func (self *Broker) ReadLoop() error {
 
 			// CHECK: Is self.Bt needed?. Is nil enough?
 
-			client, ok := self.Clients[addr]
+			_, ok = self.Clients[addr]
 			sessionPresent := false
 			if message.Flags&CleanSession_Flag == CleanSession_Flag || !ok {
 				// TODO: need to manage QoS base processing
