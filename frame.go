@@ -162,38 +162,39 @@ type Message interface {
 type ConnectFlag uint8
 
 const (
-	CleanSession ConnectFlag = 0x02
-	WillFlag     ConnectFlag = 0x04
-	WillQoS_0    ConnectFlag = 0x00
-	WillQoS_1    ConnectFlag = 0x08
-	WillQoS_2    ConnectFlag = 0x10
-	WillQoS_3    ConnectFlag = 0x18
-	WillRetain   ConnectFlag = 0x20
-	Password     ConnectFlag = 0x40
-	UserName     ConnectFlag = 0x80
+	Reserved_Flag     ConnectFlag = 0x01
+	CleanSession_Flag ConnectFlag = 0x02
+	Will_Flag         ConnectFlag = 0x04
+	WillQoS_0_Flag    ConnectFlag = 0x00
+	WillQoS_1_Flag    ConnectFlag = 0x08
+	WillQoS_2_Flag    ConnectFlag = 0x10
+	WillQoS_3_Flag    ConnectFlag = 0x18
+	WillRetain_Flag   ConnectFlag = 0x20
+	Password_Flag     ConnectFlag = 0x40
+	UserName_Flag     ConnectFlag = 0x80
 )
 
 func (self ConnectFlag) String() (s string) {
-	if self&CleanSession == CleanSession {
+	if self&CleanSession_Flag == CleanSession_Flag {
 		s += "CleanSession\n"
 	}
-	if self&WillFlag == WillFlag {
+	if self&Will_Flag == Will_Flag {
 		s += "WillFlag\n"
 	}
-	switch self & WillQoS_3 {
-	case WillQoS_0:
+	switch self & WillQoS_3_Flag {
+	case WillQoS_0_Flag:
 		s += "WillQoS_0\n"
-	case WillQoS_1:
+	case WillQoS_1_Flag:
 		s += "WillQoS_1\n"
-	case WillQoS_2:
+	case WillQoS_2_Flag:
 		s += "WillQoS_2\n"
-	case WillQoS_3:
+	case WillQoS_3_Flag:
 		s += "WillQoS_3\n"
 	}
-	if self&Password == Password {
+	if self&Password_Flag == Password_Flag {
 		s += "Password\n"
 	}
-	if self&UserName == UserName {
+	if self&UserName_Flag == UserName_Flag {
 		s += "UserName\n"
 	}
 	return s
@@ -245,23 +246,23 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 	// The way to deal with flags are inefficient
 	flags := ConnectFlag(0)
 	if cleanSession {
-		flags |= CleanSession
+		flags |= CleanSession_Flag
 	}
 	if will != nil {
 		length += 4 + len(will.Topic) + len(will.Message)
-		flags |= WillFlag | ConnectFlag(will.QoS<<3)
+		flags |= Will_Flag | ConnectFlag(will.QoS<<3)
 		if will.Retain {
-			flags |= WillRetain
+			flags |= WillRetain_Flag
 		}
 	}
 	if user != nil {
 		// TODO : password encryption here
 		length += 4 + len(user.Name) + len(user.Passwd)
 		if len(user.Name) > 0 {
-			flags |= UserName
+			flags |= UserName_Flag
 		}
 		if len(user.Passwd) > 0 {
-			flags |= Password
+			flags |= Password_Flag
 		}
 	}
 	return &ConnectMessage{
@@ -328,22 +329,22 @@ func ParseConnectMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m.ClientID = clientID
 	cursor += cTmp
 
-	if m.Flags&WillFlag == WillFlag {
+	if m.Flags&Will_Flag == Will_Flag {
 		cTmp1, topic := UTF8_decode(wire[cursor:])
 		cTmp, message := UTF8_decode(wire[cursor+cTmp1:])
 		cursor += cTmp1 + cTmp
-		retain := m.Flags&WillRetain == WillRetain
-		qos := uint8(m.Flags&WillQoS_3) >> 3
+		retain := m.Flags&WillRetain_Flag == WillRetain_Flag
+		qos := uint8(m.Flags&WillQoS_3_Flag) >> 3
 		m.Will = NewWill(topic, message, retain, qos)
 	}
 
-	if m.Flags&UserName == UserName || m.Flags&Password == Password {
+	if m.Flags&UserName_Flag == UserName_Flag || m.Flags&Password_Flag == Password_Flag {
 		var name, passwd string
-		if m.Flags&UserName == UserName {
+		if m.Flags&UserName_Flag == UserName_Flag {
 			cTmp, name = UTF8_decode(wire[cursor:])
 			cursor += cTmp
 		}
-		if m.Flags&Password == Password {
+		if m.Flags&Password_Flag == Password_Flag {
 			cTmp, passwd = UTF8_decode(wire[cursor:])
 			cursor += cTmp
 		}
