@@ -2,6 +2,7 @@ package MQTTg
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 func UTF8_encode(dst []uint8, s string) int {
@@ -46,11 +47,26 @@ type MQTT_ERROR uint8 // for 256 errors
 
 const (
 	MALFORMED_REMAIN_LENGTH MQTT_ERROR = iota
+	NOT_CONNECTED
+	INVALID_MESSAGE_CAME
+	INVALID_PROTOCOL_LEVEL
+	CLIENT_NOT_EXIST
+	CLIENT_ID_IS_USED_ALREADY
 )
+
+func EmitError(e error) {
+	// TODO: added logging here
+	fmt.Println(e.Error)
+}
 
 func (e MQTT_ERROR) Error() string {
 	er_st := []string{
 		"MALFORMED_REMAIN_LENGTH",
+		"NOT_CONNECTED",
+		"INVALID_MESSAGE_CAME",
+		"INVALID_PROTOCOL_LEVEL",
+		"CLIENT_NOT_EXIST",
+		"CLIENT_ID_IS_USED_ALREADY",
 	}
 	return er_st[e]
 }

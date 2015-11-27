@@ -48,7 +48,7 @@ func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive
 
 func (self *Client) SendMessage(m Message) error {
 	if !self.IsConnecting {
-		return nil // TODO: apply error. like NOT_CONNECTED
+		return NOT_CONNECTED
 	}
 	err := self.Ct.SendMessage(m, self.RemoteAddr)
 	return err
@@ -85,9 +85,9 @@ func (self *Client) Connect(addPair string) error {
 	}
 	self.RemoteAddr = udpaddr
 	self.Ct.conn = conn
-	self.SendMessage(NewConnectMessage(10, "dummyID",
+	err = self.SendMessage(NewConnectMessage(10, "dummyID",
 		false, nil, NewUser("name", "pass")))
-	return nil
+	return err
 }
 
 func (self *Client) Subscribe(topics []SubscribeTopic) error {
@@ -177,18 +177,18 @@ func (self *Client) ReadLoop() error {
 			// in any case, Dub must be 0
 			case 0:
 			case 1:
-				self.SendMessage(NewPubackMessage(message.PacketID))
+				err = self.SendMessage(NewPubackMessage(message.PacketID))
 			case 2:
-				self.SendMessage(NewPubrecMessage(message.PacketID))
+				err = self.SendMessage(NewPubrecMessage(message.PacketID))
 			}
 
 		case *PubackMessage:
 			// acknowledge the sent Publish packet
 		case *PubrecMessage:
 			// acknowledge the sent Publish packet
-			self.SendMessage(NewPubrelMessage(message.PacketID))
+			err = self.SendMessage(NewPubrelMessage(message.PacketID))
 		case *PubrelMessage:
-			self.SendMessage(NewPubcompMessage(message.PacketID))
+			err = self.SendMessage(NewPubcompMessage(message.PacketID))
 		case *PubcompMessage:
 			// acknowledge the sent Pubrel packet
 		case *SubackMessage:
@@ -202,6 +202,7 @@ func (self *Client) ReadLoop() error {
 			elapsed := time.Since(self.PingBegin)
 		default:
 			// when invalid messages come
+			err = INVALID_MESSAGE_CAME
 		}
 	}
 }
