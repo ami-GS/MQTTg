@@ -2,13 +2,19 @@ package MQTTg
 
 import (
 	"net"
+	"strconv"
 )
 
 type Broker struct {
 	Bt *Transport
 	// TODO: check whether not good to use addr as key
 	Clients   map[*net.UDPAddr]*Client // map[addr]*Client
+	ClientIDs map[string]*Client       // map[clientID]*Client
 	TopicRoot *TopicNode
+}
+
+func (self *Broker) ApplyDummyClientID() string {
+	return "DummyClientID:" + strconv.Itoa(len(self.ClientIDs)+1)
 }
 
 func (self *Broker) ReadLoop() error {
@@ -31,6 +37,16 @@ func (self *Broker) ReadLoop() error {
 			//if self.status?
 			// self.Bt.SendMessage(NewConnackMessage(false, ServerUnavailable), addr)
 			// self.Connack(false, ServerUnavailable)
+			_, ok := self.ClientIDs[message.ClientID]
+			if ok {
+				// TODO: this might cause problem
+				self.Bt.SendMessage(NewConnackMessage(false, IdentifierRejected), addr)
+				EmitError(CLIENT_ID_IS_USED_ALREADY)
+				continue
+			}
+			if len(message.ClientID) == 0 {
+				message.ClientID = self.ApplyDummyClientID()
+			}
 
 			// if message.User.Name and if message.User.Password
 			// self.Bt.SendMessage(NewConnackMessage(false, BadUserNameOrPassword), addr)
@@ -41,16 +57,17 @@ func (self *Broker) ReadLoop() error {
 			// continue
 
 			// CHECK: Is self.Bt needed?. Is nil enough?
-			self.Clients[addr] = NewClient(self.Bt, addr, message.ClientID,
-				message.User, message.KeepAlive, message.Will)
+
+			client, ok := self.Clients[addr]
 			sessionPresent := false
-			if message.Flags&CleanSession_Flag != CleanSession_Flag {
-				// TODO: Is it better to check disconnect or not?
-				_, exist := self.Clients[addr]
-				//If the Server has stored Session state, it MUST set Session Present to 1
-				if exist {
-					sessionPresent = true
-				}
+			if message.Flags&CleanSession_Flag == CleanSession_Flag || !ok {
+				// TODO: need to manage QoS base processing
+				client := NewClient(self.Bt, addr, message.ClientID,
+					message.User, message.KeepAlive, message.Will)
+				self.Clients[addr] = client
+				self.ClientIDs[message.ClientID] = client
+			} else if message.Flags&CleanSession_Flag != CleanSession_Flag || ok {
+				sessionPresent = true
 			}
 			self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
 		case *PublishMessage:
