@@ -33,7 +33,7 @@ func (self *Broker) ReadLoop() error {
 				continue
 			}
 
-			_, ok := self.ClientIDs[message.ClientID]
+			client, ok := self.ClientIDs[message.ClientID]
 			if ok {
 				// TODO: this might cause problem
 				err = self.Bt.SendMessage(NewConnackMessage(false, IdentifierRejected), addr)
@@ -59,11 +59,11 @@ func (self *Broker) ReadLoop() error {
 
 			// CHECK: Is self.Bt needed?. Is nil enough?
 
-			_, ok = self.Clients[addr]
+			client, ok = self.Clients[addr]
 			sessionPresent := false
 			if message.Flags&CleanSession_Flag == CleanSession_Flag || !ok {
 				// TODO: need to manage QoS base processing
-				client := NewClient(self.Bt, addr, message.ClientID,
+				client = NewClient(self.Bt, addr, message.ClientID,
 					message.User, message.KeepAlive, message.Will)
 				self.Clients[addr] = client
 				self.ClientIDs[message.ClientID] = client
