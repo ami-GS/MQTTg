@@ -119,7 +119,7 @@ func (self *Client) Unsubscribe(topics []string) error {
 	return err
 }
 
-func (self *Client) Ping() error {
+func (self *Client) keepAlive() error {
 	err := self.SendMessage(NewPingreqMessage())
 	if err == nil {
 		self.PingBegin = time.Now()
@@ -128,9 +128,6 @@ func (self *Client) Ping() error {
 }
 
 func (self *Client) Disconnect() error {
-	if !self.IsConnecting {
-		return nil // TODO: apply error. like NOT_CONNECTED
-	}
 	err := self.SendMessage(NewDisconnectMessage())
 	if err != nil {
 		return err
