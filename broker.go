@@ -49,15 +49,11 @@ func (self *Broker) ReadLoop() error {
 				continue
 			}
 
-			// if message.User.Name and if message.User.Password
-			// self.Bt.SendMessage(NewConnackMessage(false, BadUserNameOrPassword), addr)
-			// continue
-
-			// if authorized
-			// self.Bt.SendMessage(NewConnackMessage(false, NotAuthorized), addr)
-			// continue
-
-			// CHECK: Is self.Bt needed?. Is nil enough?
+			if message.Flags&UserName_Flag != UserName_Flag && message.Flags&Password_Flag == Password_Flag {
+				EmitError(USERNAME_DOES_NOT_EXIST_WITH_PASSWORD)
+				continue
+			}
+			// TODO: authorization
 
 			client, ok = self.Clients[addr]
 			sessionPresent := false
@@ -69,6 +65,13 @@ func (self *Broker) ReadLoop() error {
 				self.ClientIDs[message.ClientID] = client
 			} else if message.Flags&CleanSession_Flag != CleanSession_Flag || ok {
 				sessionPresent = true
+			}
+
+			if message.Flags&Will_Flag == Will_Flag {
+				client.Will = message.Will
+				// TODO: consider QoS and Retain as broker need
+			} else {
+
 			}
 
 			err = self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
@@ -172,11 +175,10 @@ func (self *Broker) ReadLoop() error {
 				EmitError(CLIENT_NOT_EXIST)
 				continue
 			}
+			client.Will = nil
 			client.IsConnecting = false
 
 			// close the client
-			// MUST discard WILL message
-			// associate with the connection
 		default:
 			// when invalid messages come
 			err = INVALID_MESSAGE_CAME
