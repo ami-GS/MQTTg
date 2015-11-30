@@ -2,10 +2,12 @@ package MQTTg
 
 import (
 	"net"
+	"time"
 )
 
 type Transport struct {
-	conn *net.UDPConn
+	conn     *net.UDPConn
+	duration time.Duration
 	//sm   *Sender
 }
 

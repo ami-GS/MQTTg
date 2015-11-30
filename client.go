@@ -151,6 +151,7 @@ func (self *Client) ReadLoop() error {
 		switch message := m.(type) {
 		case *ConnackMessage:
 			self.IsConnecting = true
+			self.keepAlive()
 		case *PublishMessage:
 			if message.QoS == 3 {
 				// error
@@ -197,6 +198,13 @@ func (self *Client) ReadLoop() error {
 			// acknowledged the sent unsubscribe packet
 		case *PingrespMessage:
 			elapsed := time.Since(self.PingBegin)
+			self.Ct.duration = elapsed
+			if elapsed.Seconds() >= float64(self.KeepAlive) {
+				// TODO: this must be 'reasonable amount of time'
+				err = self.SendMessage(NewDisconnectMessage())
+			} else {
+				self.keepAlive() // TODO: this make impossible to send ping manually
+			}
 		default:
 			// when invalid messages come
 			err = INVALID_MESSAGE_CAME
