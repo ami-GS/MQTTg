@@ -3,16 +3,21 @@ package MQTTg
 import (
 	"net"
 	"strconv"
+	"time"
 )
 
 type Broker struct {
 	Bt *Transport
 	// TODO: check whether not good to use addr as key
-	Clients   map[*net.UDPAddr]*Client // map[addr]*Client
-	ClientIDs map[string]*Client       // map[clientID]*Client
+	Clients   map[*net.UDPAddr]*ClientInfo // map[addr]*ClientInfo
+	ClientIDs map[string]*ClientInfo       // map[clientID]*ClientInfo
 	TopicRoot *TopicNode
 }
 
+type ClientInfo struct {
+	*Client
+	KeepAliveTimer *time.Timer
+}
 func (self *Broker) ApplyDummyClientID() string {
 	return "DummyClientID:" + strconv.Itoa(len(self.ClientIDs)+1)
 }
