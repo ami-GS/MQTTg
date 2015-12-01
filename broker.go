@@ -18,6 +18,12 @@ type ClientInfo struct {
 	*Client
 	KeepAliveTimer *time.Timer
 }
+
+func (self *ClientInfo) RunTimer() {
+	<-self.KeepAliveTimer.C
+	// TODO: disconnect or something
+}
+
 func (self *Broker) ApplyDummyClientID() string {
 	return "DummyClientID:" + strconv.Itoa(len(self.ClientIDs)+1)
 }
@@ -64,8 +70,11 @@ func (self *Broker) ReadLoop() error {
 			sessionPresent := false
 			if message.Flags&CleanSession_Flag == CleanSession_Flag || !ok {
 				// TODO: need to manage QoS base processing
-				client = NewClient(self.Bt, addr, message.ClientID,
-					message.User, message.KeepAlive, message.Will)
+				timer := time.NewTimer(time.Duration(float32(message.KeepAlive) * 100000000 * 1.5))
+				client = &ClientInfo{NewClient(self.Bt, addr, message.ClientID,
+					message.User, message.KeepAlive, message.Will),
+					timer,
+				}
 				self.Clients[addr] = client
 				self.ClientIDs[message.ClientID] = client
 			} else if message.Flags&CleanSession_Flag != CleanSession_Flag || ok {
@@ -79,6 +88,7 @@ func (self *Broker) ReadLoop() error {
 
 			}
 
+			go client.RunTimer()
 			err = self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
 		case *PublishMessage:
 			if message.QoS == 3 {
@@ -172,7 +182,16 @@ func (self *Broker) ReadLoop() error {
 			err = self.Bt.SendMessage(NewUnsubackMessage(message.PacketID), addr)
 		case *PingreqMessage:
 			// Pingresp
+			// TODO: calc elapsed time from previous pingreq.
+			//       and store the time to duration of Transport
 			err = self.Bt.SendMessage(NewPingrespMessage(), addr)
+			client, ok := self.Clients[addr]
+			if !ok {
+				// TODO: error
+				continue
+			}
+			client.KeepAliveTimer.Reset(time.Duration(float32(client.KeepAlive) * 100000000 * 1.5))
+			go client.RunTimer()
 		case *DisconnectMessage:
 			client, ok := self.Clients[addr]
 			if !ok {
@@ -182,7 +201,7 @@ func (self *Broker) ReadLoop() error {
 			}
 			client.Will = nil
 			client.IsConnecting = false
-
+			client.KeepAliveTimer.Stop()
 			// close the client
 		default:
 			// when invalid messages come
