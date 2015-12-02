@@ -21,7 +21,15 @@ type ClientInfo struct {
 
 func (self *ClientInfo) RunTimer() {
 	<-self.KeepAliveTimer.C
-	// TODO: disconnect or something
+	self.DisconnectClient()
+	// TODO: logging?
+}
+
+func (self *ClientInfo) DisconnectFromBroker() {
+	self.Will = nil
+	self.IsConnecting = false
+	self.KeepAliveTimer.Stop()
+	// TODO: free used clientID due to clean session?
 }
 
 func (self *Broker) ApplyDummyClientID() string {
@@ -199,9 +207,8 @@ func (self *Broker) ReadLoop() error {
 				EmitError(CLIENT_NOT_EXIST)
 				continue
 			}
-			client.Will = nil
-			client.IsConnecting = false
-			client.KeepAliveTimer.Stop()
+			client.DisconnectFromBroker()
+
 			// close the client
 		default:
 			// when invalid messages come
