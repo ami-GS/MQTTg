@@ -17,6 +17,15 @@ type Broker struct {
 type ClientInfo struct {
 	*Client
 	KeepAliveTimer *time.Timer
+	Duration       time.Duration
+}
+
+func (self *ClientInfo) NewTimer() {
+	self.KeepAliveTimer = time.NewTimer(self.Duration)
+}
+
+func (self *ClientInfo) ResetTimer() {
+	self.KeepAliveTimer.Reset(self.Duration)
 }
 
 func (self *ClientInfo) RunTimer() {
@@ -78,11 +87,14 @@ func (self *Broker) ReadLoop() error {
 			sessionPresent := false
 			if message.Flags&CleanSession_Flag == CleanSession_Flag || !ok {
 				// TODO: need to manage QoS base processing
-				timer := time.NewTimer(time.Duration(float32(message.KeepAlive) * 100000000 * 1.5))
-				client = &ClientInfo{NewClient(self.Bt, addr, message.ClientID,
-					message.User, message.KeepAlive, message.Will),
-					timer,
+				duration := time.Duration(float32(message.KeepAlive) * 100000000 * 1.5)
+				client = &ClientInfo{
+					Client: NewClient(self.Bt, addr, message.ClientID,
+						message.User, message.KeepAlive, message.Will),
+					KeepAliveTimer: nil,
+					Duretion:       duration,
 				}
+				client.NewTimer()
 				self.Clients[addr] = client
 				self.ClientIDs[message.ClientID] = client
 			} else if message.Flags&CleanSession_Flag != CleanSession_Flag || ok {
@@ -198,7 +210,7 @@ func (self *Broker) ReadLoop() error {
 				// TODO: error
 				continue
 			}
-			client.KeepAliveTimer.Reset(time.Duration(float32(client.KeepAlive) * 100000000 * 1.5))
+			client.ResetTimer()
 			go client.RunTimer()
 		case *DisconnectMessage:
 			client, ok := self.Clients[addr]
