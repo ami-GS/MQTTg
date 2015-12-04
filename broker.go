@@ -207,7 +207,7 @@ func (self *Broker) ReadLoop() error {
 			err = self.Bt.SendMessage(NewPingrespMessage(), addr)
 			client, ok := self.Clients[addr]
 			if !ok {
-				// TODO: error
+				EmitError(CLIENT_NOT_EXIST)
 				continue
 			}
 			client.ResetTimer()
@@ -215,7 +215,6 @@ func (self *Broker) ReadLoop() error {
 		case *DisconnectMessage:
 			client, ok := self.Clients[addr]
 			if !ok {
-				// TODO: emit error/warnning
 				EmitError(CLIENT_NOT_EXIST)
 				continue
 			}
