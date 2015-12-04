@@ -30,7 +30,7 @@ func (self *ClientInfo) ResetTimer() {
 
 func (self *ClientInfo) RunTimer() {
 	<-self.KeepAliveTimer.C
-	self.DisconnectClient()
+	self.DisconnectFromBroker()
 	// TODO: logging?
 }
 
