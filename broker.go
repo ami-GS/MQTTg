@@ -56,6 +56,9 @@ func (self *Broker) ReadLoop() error {
 			EmitError(err)
 			continue
 		}
+
+		client, ok := self.Clients[addr]
+
 		switch message := m.(type) {
 		case *ConnectMessage:
 			if message.Protocol.Level != MQTT_3_1_1.Level {
@@ -65,7 +68,7 @@ func (self *Broker) ReadLoop() error {
 				continue
 			}
 
-			client, ok := self.ClientIDs[message.ClientID]
+			_, ok = self.ClientIDs[message.ClientID]
 			if ok {
 				// TODO: this might cause problem
 				err = self.Bt.SendMessage(NewConnackMessage(false, IdentifierRejected), addr)
@@ -111,6 +114,10 @@ func (self *Broker) ReadLoop() error {
 			go client.RunTimer()
 			err = self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
 		case *PublishMessage:
+			if !ok {
+				EmitError(CLIENT_NOT_EXIST)
+				continue
+			}
 			if message.QoS == 3 {
 				EmitError(INVALID_QOS_3)
 				client.DisconnectFromBroker()
@@ -154,10 +161,14 @@ func (self *Broker) ReadLoop() error {
 		case *SubscribeMessage:
 			// TODO: check The wild card is permitted
 			codes := make([]SubscribeReturnCode, len(message.SubscribeTopics))
-			for i, subTopic := range message.SubscribeTopics {
-				// TODO: need to validate wheter there are same topics or not
-				client, ok := self.Clients[addr]
-				if ok {
+			if !ok {
+				EmitError(CLIENT_NOT_EXIST)
+				for i, _ := range message.SubscribeTopics {
+					codes[i] = SubscribeFailure
+				}
+			} else {
+				for i, subTopic := range message.SubscribeTopics {
+					// TODO: need to validate wheter there are same topics or not
 					retains, code := self.TopicRoot.ApplySubscriber(client.ID, string(subTopic.Topic), subTopic.QoS)
 					codes[i] = code
 					client.SubTopics = append(client.SubTopics,
@@ -170,14 +181,10 @@ func (self *Broker) ReadLoop() error {
 							//Publish(k,v)
 						}
 					}
-				} else {
-					codes[i] = SubscribeFailure // TODO: correct?
 				}
-
 			}
 			err = self.Bt.SendMessage(NewSubackMessage(message.PacketID, codes), addr)
 		case *UnsubscribeMessage:
-			client, ok := self.Clients[addr]
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
 				continue // TODO: ?
@@ -204,22 +211,19 @@ func (self *Broker) ReadLoop() error {
 			// Pingresp
 			// TODO: calc elapsed time from previous pingreq.
 			//       and store the time to duration of Transport
-			err = self.Bt.SendMessage(NewPingrespMessage(), addr)
-			client, ok := self.Clients[addr]
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
 				continue
 			}
+			err = self.Bt.SendMessage(NewPingrespMessage(), addr)
 			client.ResetTimer()
 			go client.RunTimer()
 		case *DisconnectMessage:
-			client, ok := self.Clients[addr]
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
 				continue
 			}
 			client.DisconnectFromBroker()
-
 			// close the client
 		default:
 			// when invalid messages come
