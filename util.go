@@ -53,6 +53,7 @@ const (
 	CLIENT_NOT_EXIST
 	CLIENT_ID_IS_USED_ALREADY
 	USERNAME_DOES_NOT_EXIST_WITH_PASSWORD
+	INVALID_QOS_3
 )
 
 func EmitError(e error) {
@@ -69,6 +70,7 @@ func (e MQTT_ERROR) Error() string {
 		"CLIENT_NOT_EXIST",
 		"CLIENT_ID_IS_USED_ALREADY",
 		"USERNAME_DOES_NOT_EXIST_WITH_PASSWORD",
+		"INVALID_QOS_3",
 	}
 	return er_st[e]
 }

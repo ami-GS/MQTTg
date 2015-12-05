@@ -112,8 +112,8 @@ func (self *Broker) ReadLoop() error {
 			err = self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
 		case *PublishMessage:
 			if message.QoS == 3 {
-				// error
-				// close connection
+				EmitError(INVALID_QOS_3)
+				client.DisconnectFromBroker()
 				continue
 			}
 
