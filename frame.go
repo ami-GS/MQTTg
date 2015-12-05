@@ -465,15 +465,11 @@ func (self *PublishMessage) GetWire() ([]byte, error) {
 	topicLen := len(self.TopicName)
 	wire := make([]byte, 2+QoSexistence+topicLen+len(self.Payload))
 	binary.BigEndian.PutUint16(wire, uint16(topicLen))
-	for i, v := range []byte(self.TopicName) {
-		wire[2+i] = v
-	}
+	copy(wire[2:], []byte(self.TopicName))
 	if self.QoS > 0 {
 		binary.BigEndian.PutUint16(wire[2+topicLen:], self.PacketID)
 	}
-	for i, v := range self.Payload {
-		wire[2+QoSexistence+topicLen+i] = v
-	}
+	copy(wire[2+QoSexistence+topicLen:], self.Payload)
 
 	return wire, nil
 }
@@ -775,6 +771,7 @@ func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
 func (self *SubackMessage) GetWire() ([]byte, error) {
 	wire := make([]byte, 2+len(self.ReturnCodes))
 	binary.BigEndian.PutUint16(wire, self.PacketID)
+	//copy(wire[2:], []byte(self.ReturnCodes)) // TODO: cannnot used, check
 	for i, v := range self.ReturnCodes {
 		wire[2+i] = byte(v)
 	}
