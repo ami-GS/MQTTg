@@ -8,6 +8,7 @@ type TopicNode struct {
 	Nodes map[string]*TopicNode
 	//FullPath      string // if needed
 	RetainMessage string
+	RetainQoS     uint8
 	Subscribers   map[string]uint8 // map[clientID]QoS
 }
 
@@ -55,12 +56,13 @@ func (self *TopicNode) DeleteSubscriber(clientID, topic string) error {
 	return nil
 }
 
-func (self *TopicNode) ApplyRetain(topic, retain string) error {
+func (self *TopicNode) ApplyRetain(topic string, qos uint8, retain string) error {
 	edges := self.GetTopicNodes(topic)
 	for _, edge := range edges {
 		// for debug to store all retain mesage
 		// edge.RetainMessage = append(edge.RetainMessage, retain)
 		edge.RetainMessage = retain
+		edge.RetainQoS = qos
 	}
 
 	return nil
@@ -70,6 +72,7 @@ func (self *TopicNode) ApplyNewTopic(topic string) error {
 	self.Nodes[topic] = &TopicNode{
 		Nodes:         make(map[string]*TopicNode),
 		RetainMessage: "",
+		RetainQoS:     0,
 		Subscribers:   make(map[string]uint8),
 	}
 	return nil
