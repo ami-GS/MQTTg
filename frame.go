@@ -435,7 +435,16 @@ type PublishMessage struct {
 }
 
 func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16, payload []uint8) *PublishMessage {
-	length := 4 + len(topic) + len(payload)
+	QoSexistence := 0
+	if qos > 0 {
+		QoSexistence = 2
+	} else if id != 0 {
+		// TODO: emit warnning?
+		// id cannot be set when QoS == 0
+		id = 0
+	}
+
+	length := 2 + QoSexistence + len(topic) + len(payload)
 	return &PublishMessage{
 		FixedHeader: NewFixedHeader(
 			Publish,
@@ -449,15 +458,21 @@ func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16
 }
 
 func (self *PublishMessage) GetWire() ([]byte, error) {
+	QoSexistence := 0
+	if self.QoS > 0 {
+		QoSexistence = 2
+	}
 	topicLen := len(self.TopicName)
-	wire := make([]byte, 4+topicLen+len(self.Payload))
+	wire := make([]byte, 2+QoSexistence+topicLen+len(self.Payload))
 	binary.BigEndian.PutUint16(wire, uint16(topicLen))
 	for i, v := range []byte(self.TopicName) {
 		wire[2+i] = v
 	}
-	binary.BigEndian.PutUint16(wire[2+topicLen:], self.PacketID)
+	if self.QoS > 0 {
+		binary.BigEndian.PutUint16(wire[2+topicLen:], self.PacketID)
+	}
 	for i, v := range self.Payload {
-		wire[4+topicLen+i] = v
+		wire[2+QoSexistence+topicLen+i] = v
 	}
 
 	return wire, nil
@@ -471,9 +486,12 @@ func ParsePublishMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	var topicLen uint16 = uint16((wire[0] << 8) + wire[1])
 	m := &PublishMessage{
 		FixedHeader: fh,
+		PacketID:    0,
 	}
 	m.TopicName = string(wire[:topicLen])
-	m.PacketID = binary.BigEndian.Uint16(wire[topicLen : topicLen+2])
+	if fh.QoS > 0 {
+		m.PacketID = binary.BigEndian.Uint16(wire[topicLen : topicLen+2])
+	}
 	m.Payload = wire[topicLen+1:]
 
 	return m, nil
