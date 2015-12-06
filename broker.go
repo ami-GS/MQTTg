@@ -132,14 +132,13 @@ func (self *Broker) ReadLoop() error {
 
 			if message.Retain {
 				// store tehe application message to designated topic
-				self.TopicRoot.ApplyRetain(message.TopicName, message.QoS, string(message.Payload))
-				if len(message.Payload) == 0 {
-					// discard(remove) retained message
-				}
-
-				if message.QoS == 0 {
+				data := string(message.Payload)
+				if message.QoS == 0 && len(data) > 0 {
+					// TODO: warnning, in this case data cannot be stored.
 					// discard retained message
+					data = ""
 				}
+				self.TopicRoot.ApplyRetain(message.TopicName, message.QoS, data)
 			}
 
 			switch message.QoS {
