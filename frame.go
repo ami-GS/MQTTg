@@ -191,6 +191,9 @@ func (self ConnectFlag) String() (s string) {
 	case WillQoS_3_Flag:
 		s += "WillQoS_3\n"
 	}
+	if self&WillRetain_Flag == WillRetain_Flag {
+		s += "WillRetain_Flag\n"
+	}
 	if self&Password_Flag == Password_Flag {
 		s += "Password\n"
 	}
