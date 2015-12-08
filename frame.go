@@ -93,7 +93,7 @@ func (self *FixedHeader) GetWire() (wire []byte) {
 		remainByteLen = 4
 	}
 	wire = make([]uint8, 1+remainByteLen)
-	wire[0] = uint8(self.Type)
+	wire[0] = uint8(self.Type) << 4
 	if self.Dup {
 		wire[0] |= 0x08
 	}
