@@ -32,6 +32,9 @@ func RemainEncode(dst []uint8, length uint32) int {
 func RemainDecode(wire []byte) (uint32, error) {
 	multiplier := uint32(1)
 	out := uint32(wire[0] & 0x7f)
+	if len(wire) == 1 {
+		return out, nil
+	}
 	for idx := 1; wire[idx]&0x80 == 0x80; idx++ {
 		out += uint32(wire[idx]&0x7f) * multiplier
 		multiplier *= 0x80
