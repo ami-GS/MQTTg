@@ -35,8 +35,25 @@ func TestUTF8_decode(t *testing.T) {
 	}
 }
 
-func TestRemainEncode(t *testing.T) {
-}
+func TestRemainEncodeDecode(t *testing.T) {
+	exData := []uint32{0, 127, 128, 16383, 16384, 2097151, 2097152, 268435455}
+	e_wires := [][]byte{[]byte{0x00}, []byte{0x7f},
+		[]byte{0x80, 0x01}, []byte{0xff, 0x7f},
+		[]byte{0x80, 0x80, 0x01}, []byte{0xff, 0xff, 0x7f},
+		[]byte{0x80, 0x80, 0x80, 0x01}, []byte{0xff, 0xff, 0xff, 0x7f}}
+	for i, dat := range exData {
+		a_wire := make([]byte, len(e_wires[i]))
+		RemainEncode(a_wire, dat)
+		if !reflect.DeepEqual(a_wire, e_wires[i]) {
+			t.Errorf("got %v\nwant %v", a_wire, e_wires[i])
+		}
+	}
 
-func TestRemainDecode(t *testing.T) {
+	for i, data := range e_wires {
+		a_data, _ := RemainDecode(data)
+		if a_data != exData[i] {
+			t.Errorf("got %v\nwant %v", a_data, exData[i])
+		}
+	}
+
 }
