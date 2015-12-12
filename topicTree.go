@@ -64,13 +64,14 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 				return nil, WILDCARD_MUST_NOT_BE_ADJACENT_TO_NAME
 			}
 			nxt, exist = bef.Nodes[part]
-			if !exist && i == len(parts)-1 {
+			if !exist {
 				bef.ApplyNewTopic(part)
 				nxt, _ = bef.Nodes[part]
-			} else if !exist {
-				// not exist topic
-				return nil, nil // TODO: this shuld return specific error
 			}
+			if i != len(parts)-1 {
+				out = append(out, nxt)
+			}
+
 		}
 	}
 	return out, nil
