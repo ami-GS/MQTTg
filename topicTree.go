@@ -78,9 +78,12 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 
 }
 
-func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) (map[string]string, SubscribeReturnCode) {
+func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) (map[string]string, SubscribeReturnCode, error) {
 	// find topic edge and apply the clientID
-	edges, _ := self.GetTopicNodes(topic)
+	edges, err := self.GetTopicNodes(topic)
+	if err != nil {
+		return nil, SubscribeFailure, err
+	}
 	retains := make(map[string]string)
 	for _, edge := range edges {
 		edge.Subscribers[clientID] = qos
@@ -90,7 +93,7 @@ func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) (map[s
 			retains[topic] = edge.RetainMessage
 		}
 	}
-	return retains, SubscribeReturnCode(qos)
+	return retains, SubscribeReturnCode(qos), nil
 }
 
 func (self *TopicNode) DeleteSubscriber(clientID, topic string) error {

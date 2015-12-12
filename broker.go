@@ -169,7 +169,11 @@ func (self *Broker) ReadLoop() error {
 			} else {
 				for i, subTopic := range message.SubscribeTopics {
 					// TODO: need to validate wheter there are same topics or not
-					retains, code := self.TopicRoot.ApplySubscriber(client.ID, string(subTopic.Topic), subTopic.QoS)
+					retains, code, err := self.TopicRoot.ApplySubscriber(client.ID, string(subTopic.Topic), subTopic.QoS)
+					if err != nil {
+						// TODO: consider additional treatment
+						EmitError(err)
+					}
 					codes[i] = code
 					client.SubTopics = append(client.SubTopics,
 						SubscribeTopic{SubscribeAck,
