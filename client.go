@@ -22,14 +22,15 @@ func NewUser(name, pass string) *User {
 type Client struct {
 	Ct           *Transport
 	IsConnecting bool
-	Addr         *net.UDPAddr
-	RemoteAddr   *net.UDPAddr
-	ID           string
-	User         *User
-	KeepAlive    uint16
-	Will         *Will
-	SubTopics    []SubscribeTopic
-	PingBegin    time.Time
+	//Addr         *net.UDPAddr
+	RemoteAddr  *net.UDPAddr
+	ID          string
+	User        *User
+	KeepAlive   uint16
+	Will        *Will
+	SubTopics   []SubscribeTopic
+	PingBegin   time.Time
+	PacketIDMap map[uint16]Message
 }
 
 func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
@@ -37,7 +38,7 @@ func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive
 	return &Client{
 		Ct:           t,
 		IsConnecting: false,
-		Addr:         addr,
+		RemoteAddr:   addr,
 		ID:           id,
 		User:         user,
 		KeepAlive:    keepAlive,

@@ -146,17 +146,18 @@ func (self *Broker) ReadLoop() error {
 			// in any case, Dub must be 0
 			case 0:
 			case 1:
-				err = self.Bt.SendMessage(NewPubackMessage(message.PacketID), addr)
+				err = client.SendMessage(NewPubackMessage(message.PacketID))
 			case 2:
-				err = self.Bt.SendMessage(NewPubrecMessage(message.PacketID), addr)
+				err = client.SendMessage(NewPubrecMessage(message.PacketID))
 			}
 		case *PubackMessage:
 			// acknowledge the sent Publish packet
 		case *PubrecMessage:
 			// acknowledge the sent Publish packet
-			err = self.Bt.SendMessage(NewPubrelMessage(message.PacketID), addr)
+			err = client.SendMessage(NewPubrelMessage(message.PacketID))
 		case *PubrelMessage:
-			err = self.Bt.SendMessage(NewPubcompMessage(message.PacketID), addr)
+			// acknowledge the sent Pubrec packet
+			err = client.SendMessage(NewPubcompMessage(message.PacketID))
 		case *PubcompMessage:
 			// acknowledge the sent Pubrel packet
 		case *SubscribeMessage:
@@ -188,7 +189,7 @@ func (self *Broker) ReadLoop() error {
 					}
 				}
 			}
-			err = self.Bt.SendMessage(NewSubackMessage(message.PacketID, codes), addr)
+			err = client.SendMessage(NewSubackMessage(message.PacketID, codes))
 		case *UnsubscribeMessage:
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
@@ -211,7 +212,7 @@ func (self *Broker) ReadLoop() error {
 				}
 			}
 			client.SubTopics = result
-			err = self.Bt.SendMessage(NewUnsubackMessage(message.PacketID), addr)
+			err = client.SendMessage(NewUnsubackMessage(message.PacketID))
 		case *PingreqMessage:
 			// Pingresp
 			// TODO: calc elapsed time from previous pingreq.
@@ -220,7 +221,7 @@ func (self *Broker) ReadLoop() error {
 				EmitError(CLIENT_NOT_EXIST)
 				continue
 			}
-			err = self.Bt.SendMessage(NewPingrespMessage(), addr)
+			err = client.SendMessage(NewPingrespMessage())
 			client.ResetTimer()
 			go client.RunTimer()
 		case *DisconnectMessage:
