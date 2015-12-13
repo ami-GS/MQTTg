@@ -44,6 +44,7 @@ func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive
 		KeepAlive:    keepAlive,
 		Will:         will,
 		SubTopics:    make([]SubscribeTopic, 0),
+		PacketIDMap:  make(map[uint16]Message, 0),
 	}
 }
 
@@ -52,6 +53,23 @@ func (self *Client) SendMessage(m Message) error {
 		return NOT_CONNECTED
 	}
 	err := self.Ct.SendMessage(m, self.RemoteAddr)
+	if err == nil {
+		switch mess := m.(type) {
+		case *PublishMessage:
+			if mess.PacketID > 0 {
+				self.PacketIDMap[mess.PacketID] = m
+			}
+		case *PubrecMessage:
+			self.PacketIDMap[mess.PacketID] = m
+		case *PubrelMessage:
+			self.PacketIDMap[mess.PacketID] = m
+		case *SubscribeMessage:
+			self.PacketIDMap[mess.PacketID] = m
+		case *UnsubscribeMessage:
+			self.PacketIDMap[mess.PacketID] = m
+		}
+	}
+
 	return err
 }
 
@@ -138,6 +156,15 @@ func (self *Client) Disconnect() error {
 	return err
 }
 
+func (self *Client) AckMessage(id uint16) error {
+	_, ok := self.PacketIDMap[id]
+	if !ok {
+		return PACKET_ID_DOES_NOT_EXIST
+	}
+	delete(self.PacketIDMap, id)
+	return nil
+}
+
 func (self *Client) ReadLoop() error {
 	for {
 		m, addr, err := self.Ct.ReadMessageFrom()
@@ -151,6 +178,7 @@ func (self *Client) ReadLoop() error {
 		}
 		switch message := m.(type) {
 		case *ConnackMessage:
+			self.AckMessage(message.PacketID)
 			self.IsConnecting = true
 			self.keepAlive()
 		case *PublishMessage:
@@ -180,23 +208,31 @@ func (self *Client) ReadLoop() error {
 			case 2:
 				err = self.SendMessage(NewPubrecMessage(message.PacketID))
 			}
-
 		case *PubackMessage:
 			// acknowledge the sent Publish packet
+			if message.PacketID > 0 {
+				err = self.AckMessage(message.PacketID)
+			}
 		case *PubrecMessage:
 			// acknowledge the sent Publish packet
+			err = self.AckMessage(message.PacketID)
 			err = self.SendMessage(NewPubrelMessage(message.PacketID))
 		case *PubrelMessage:
+			// acknowledge the sent Pubrel packet
+			self.AckMessage(message.PacketID)
 			err = self.SendMessage(NewPubcompMessage(message.PacketID))
 		case *PubcompMessage:
 			// acknowledge the sent Pubrel packet
+			self.AckMessage(message.PacketID)
 		case *SubackMessage:
 			// acknowledge the sent subscribe packet
+			self.AckMessage(message.PacketID)
 			for i, code := range message.ReturnCodes {
 				_ = self.AckSubscribeTopic(i, code)
 			}
 		case *UnsubackMessage:
 			// acknowledged the sent unsubscribe packet
+			self.AckMessage(message.PacketID)
 		case *PingrespMessage:
 			elapsed := time.Since(self.PingBegin)
 			self.Ct.duration = elapsed

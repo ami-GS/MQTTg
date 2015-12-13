@@ -152,14 +152,18 @@ func (self *Broker) ReadLoop() error {
 			}
 		case *PubackMessage:
 			// acknowledge the sent Publish packet
+			err = client.AckMessage(message.PacketID)
 		case *PubrecMessage:
 			// acknowledge the sent Publish packet
+			err = client.AckMessage(message.PacketID)
 			err = client.SendMessage(NewPubrelMessage(message.PacketID))
 		case *PubrelMessage:
 			// acknowledge the sent Pubrec packet
+			err = client.AckMessage(message.PacketID)
 			err = client.SendMessage(NewPubcompMessage(message.PacketID))
 		case *PubcompMessage:
 			// acknowledge the sent Pubrel packet
+			err = client.AckMessage(message.PacketID)
 		case *SubscribeMessage:
 			// TODO: check The wild card is permitted
 			codes := make([]SubscribeReturnCode, len(message.SubscribeTopics))
