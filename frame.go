@@ -68,15 +68,17 @@ type FixedHeader struct {
 	QoS          uint8
 	Retain       bool
 	RemainLength uint32
+	PacketID     uint16 // for easy use
 }
 
-func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length uint32) *FixedHeader {
+func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length uint32, id uint16) *FixedHeader {
 	return &FixedHeader{
 		Type:         mType,
 		Dup:          dup,
 		QoS:          qos,
 		Retain:       retain,
 		RemainLength: length,
+		PacketID:     id,
 	}
 }
 
@@ -124,7 +126,7 @@ func ParseFixedHeader(wire []byte) (*FixedHeader, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := NewFixedHeader(mType, dup, qos, retain, length)
+	h := NewFixedHeader(mType, dup, qos, retain, length, 0)
 
 	return h, nil
 }
@@ -272,7 +274,7 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 		FixedHeader: NewFixedHeader(
 			Connect,
 			false, 0, false,
-			uint32(length),
+			uint32(length), 0,
 		),
 		Protocol:  MQTT_3_1_1,
 		Flags:     flags,
@@ -397,7 +399,7 @@ func NewConnackMessage(flag bool, code ConnectReturnCode) *ConnackMessage {
 		FixedHeader: NewFixedHeader(
 			Connack,
 			false, 0, false,
-			2,
+			2, 0,
 		),
 		SessionPresentFlag: flag,
 		ReturnCode:         code,
@@ -433,7 +435,6 @@ func ParseConnackMessage(fh *FixedHeader, wire []byte) (Message, error) {
 type PublishMessage struct {
 	*FixedHeader
 	TopicName string
-	PacketID  uint16
 	Payload   []uint8
 }
 
@@ -452,10 +453,9 @@ func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16
 		FixedHeader: NewFixedHeader(
 			Publish,
 			dub, qos, retain,
-			uint32(length),
+			uint32(length), id,
 		),
 		TopicName: topic,
-		PacketID:  id,
 		Payload:   payload,
 	}
 }
@@ -485,7 +485,6 @@ func ParsePublishMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	var topicLen uint16 = uint16((wire[0] << 8) + wire[1])
 	m := &PublishMessage{
 		FixedHeader: fh,
-		PacketID:    0,
 	}
 	m.TopicName = string(wire[:topicLen])
 	if fh.QoS > 0 {
@@ -498,7 +497,6 @@ func ParsePublishMessage(fh *FixedHeader, wire []byte) (Message, error) {
 
 type PubackMessage struct {
 	*FixedHeader
-	PacketID uint16
 }
 
 func NewPubackMessage(id uint16) *PubackMessage {
@@ -506,9 +504,8 @@ func NewPubackMessage(id uint16) *PubackMessage {
 		FixedHeader: NewFixedHeader(
 			Puback,
 			false, 0, false,
-			2,
+			2, id,
 		),
-		PacketID: id,
 	}
 }
 
@@ -534,7 +531,6 @@ func ParsePubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
 
 type PubrecMessage struct {
 	*FixedHeader
-	PacketID uint16
 }
 
 func NewPubrecMessage(id uint16) *PubrecMessage {
@@ -542,9 +538,8 @@ func NewPubrecMessage(id uint16) *PubrecMessage {
 		FixedHeader: NewFixedHeader(
 			Pubrec,
 			false, 0, false,
-			2,
+			2, id,
 		),
-		PacketID: id,
 	}
 }
 
@@ -570,7 +565,6 @@ func ParsePubrecMessage(fh *FixedHeader, wire []byte) (Message, error) {
 
 type PubrelMessage struct {
 	*FixedHeader
-	PacketID uint16
 }
 
 func NewPubrelMessage(id uint16) *PubrelMessage {
@@ -578,9 +572,8 @@ func NewPubrelMessage(id uint16) *PubrelMessage {
 		FixedHeader: NewFixedHeader(
 			Pubrel,
 			false, 1, false,
-			2,
+			2, id,
 		),
-		PacketID: id,
 	}
 }
 
@@ -606,7 +599,6 @@ func ParsePubrelMessage(fh *FixedHeader, wire []byte) (Message, error) {
 
 type PubcompMessage struct {
 	*FixedHeader
-	PacketID uint16
 }
 
 func NewPubcompMessage(id uint16) *PubcompMessage {
@@ -614,9 +606,8 @@ func NewPubcompMessage(id uint16) *PubcompMessage {
 		FixedHeader: NewFixedHeader(
 			Pubcomp,
 			false, 0, false,
-			2,
+			2, id,
 		),
-		PacketID: id,
 	}
 }
 
@@ -665,7 +656,6 @@ func NewSubscribeTopic(topic string, qos uint8) *SubscribeTopic {
 
 type SubscribeMessage struct {
 	*FixedHeader
-	PacketID        uint16
 	SubscribeTopics []SubscribeTopic
 }
 
@@ -679,9 +669,8 @@ func NewSubscribeMessage(id uint16, topics []SubscribeTopic) *SubscribeMessage {
 		FixedHeader: NewFixedHeader(
 			Subscribe,
 			false, 1, false,
-			uint32(length),
+			uint32(length), id,
 		),
-		PacketID:        id,
 		SubscribeTopics: topics,
 	}
 }
@@ -754,7 +743,6 @@ func (self SubscribeReturnCode) String() string {
 
 type SubackMessage struct {
 	*FixedHeader
-	PacketID    uint16
 	ReturnCodes []SubscribeReturnCode
 }
 
@@ -764,9 +752,8 @@ func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
 		FixedHeader: NewFixedHeader(
 			Suback,
 			false, 0, false,
-			uint32(length),
+			uint32(length), id,
 		),
-		PacketID:    id,
 		ReturnCodes: codes,
 	}
 }
@@ -816,9 +803,8 @@ func NewUnsubscribeMessage(id uint16, topics []string) *UnsubscribeMessage {
 		FixedHeader: NewFixedHeader(
 			Unsubscribe,
 			false, 1, false,
-			uint32(length),
+			uint32(length), id,
 		),
-		PacketID:   id,
 		TopicNames: topics,
 	}
 }
@@ -867,7 +853,6 @@ func ParseUnsubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 
 type UnsubackMessage struct {
 	*FixedHeader
-	PacketID uint16
 }
 
 func NewUnsubackMessage(id uint16) *UnsubackMessage {
@@ -875,9 +860,8 @@ func NewUnsubackMessage(id uint16) *UnsubackMessage {
 		FixedHeader: NewFixedHeader(
 			Unsuback,
 			false, 0, false,
-			2,
+			2, id,
 		),
-		PacketID: id,
 	}
 }
 
@@ -910,7 +894,7 @@ func NewPingreqMessage() *PingreqMessage {
 		FixedHeader: NewFixedHeader(
 			Pingreq,
 			false, 0, false,
-			0,
+			0, 0,
 		),
 	}
 }
@@ -940,7 +924,7 @@ func NewPingrespMessage() *PingrespMessage {
 		FixedHeader: NewFixedHeader(
 			Pingresp,
 			false, 0, false,
-			0,
+			0, 0,
 		),
 	}
 }
@@ -970,7 +954,7 @@ func NewDisconnectMessage() *DisconnectMessage {
 		FixedHeader: NewFixedHeader(
 			Disconnect,
 			false, 0, false,
-			0,
+			0, 0,
 		),
 	}
 }
