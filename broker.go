@@ -113,6 +113,7 @@ func (self *Broker) ReadLoop() error {
 
 			go client.RunTimer()
 			err = self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
+			client.IsConnecting = true
 		case *PublishMessage:
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
