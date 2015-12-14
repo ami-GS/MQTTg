@@ -5,8 +5,8 @@ import (
 )
 
 type TopicNode struct {
-	Nodes map[string]*TopicNode
-	//FullPath      string // if needed
+	Nodes         map[string]*TopicNode
+	FullPath      string
 	RetainMessage string
 	RetainQoS     uint8
 	Subscribers   map[string]uint8 // map[clientID]QoS
@@ -30,8 +30,12 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 	parts := strings.Split(topic, "/")
 	nxt := self
 	exist := false
+	currentPath := ""
 	for i, part := range parts {
 		bef := nxt
+		if i != len(parts)-1 {
+			currentPath += part + "/"
+		}
 
 		if part == "+" {
 			if i == len(parts)-1 {
@@ -65,7 +69,8 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 			}
 			nxt, exist = bef.Nodes[part]
 			if !exist {
-				bef.ApplyNewTopic(part)
+				// TODO: this has bug through after case 'A/+/C/D'
+				bef.ApplyNewTopic(part, currentPath)
 				nxt, _ = bef.Nodes[part]
 			}
 			if i != len(parts)-1 {
@@ -122,9 +127,10 @@ func (self *TopicNode) ApplyRetain(topic string, qos uint8, retain string) error
 	return nil
 }
 
-func (self *TopicNode) ApplyNewTopic(topic string) error {
+func (self *TopicNode) ApplyNewTopic(topic, fullPath string) error {
 	self.Nodes[topic] = &TopicNode{
 		Nodes:         make(map[string]*TopicNode),
+		FullPath:      fullPath,
 		RetainMessage: "",
 		RetainQoS:     0,
 		Subscribers:   make(map[string]uint8),
