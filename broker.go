@@ -166,34 +166,40 @@ func (self *Broker) ReadLoop() error {
 			err = client.AckMessage(message.PacketID)
 		case *SubscribeMessage:
 			// TODO: check The wild card is permitted
-			codes := make([]SubscribeReturnCode, len(message.SubscribeTopics))
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
-				for i, _ := range message.SubscribeTopics {
-					codes[i] = SubscribeFailure
-				}
-			} else {
-				for i, subTopic := range message.SubscribeTopics {
-					// TODO: need to validate wheter there are same topics or not
-					retains, code, err := self.TopicRoot.ApplySubscriber(client.ID, string(subTopic.Topic), subTopic.QoS)
-					if err != nil {
-						// TODO: consider additional treatment
-						EmitError(err)
+			}
+			returnCodes := make([]SubscribeReturnCode, 0)
+			for _, subTopic := range message.SubscribeTopics {
+				// TODO: need to validate wheter there are same topics or not
+				edges, err := self.TopicRoot.GetTopicNodes(subTopic.Topic)
+				codes := make([]SubscribeReturnCode, len(edges))
+				if err != nil || !ok {
+					for i, _ := range codes {
+						codes[i] = SubscribeFailure
 					}
-					codes[i] = code
-					client.SubTopics = append(client.SubTopics,
-						SubscribeTopic{SubscribeAck,
-							subTopic.Topic,
-							uint8(code),
-						})
-					if len(retains) > 0 {
-						for k, v := range retains {
-							//Publish(k,v)
+				} else {
+					for i, edge := range edges {
+						edge.Subscribers[client.ID] = subTopic.QoS
+						codes[i] = SubscribeReturnCode(subTopic.QoS)
+						client.SubTopics = append(client.SubTopics,
+							SubscribeTopic{SubscribeAck,
+								edge.FullPath,
+								uint8(subTopic.QoS),
+							})
+						if len(edge.RetainMessage) > 0 {
+							// publish retain
+							// TODO: check all arguments
+							err = client.SendMessage(NewPublishMessage(false, edge.RetainQoS, true,
+								edge.FullPath, message.PacketID, []uint8(edge.RetainMessage)))
+							// TODO: error validation
 						}
 					}
 				}
+				returnCodes = append(returnCodes, codes...)
 			}
-			err = client.SendMessage(NewSubackMessage(message.PacketID, codes))
+			// TODO: check whether the number of return codes are correct?
+			err = client.SendMessage(NewSubackMessage(message.PacketID, returnCodes))
 		case *UnsubscribeMessage:
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
