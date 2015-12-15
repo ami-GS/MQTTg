@@ -286,29 +286,41 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 }
 
 func (self *ConnectMessage) GetWire() ([]byte, error) {
-	wire := make([]uint8, 2+len(self.Protocol.Name)+6)
+	length := 2 + len(self.Protocol.Name) + 2
+	if len(self.ClientID) != 0 {
+		length += len(self.ClientID)
+	}
+	if self.Flags&Will_Flag == Will_Flag {
+		length += 4 + len(self.Will.Topic) + len(self.Will.Message)
+	}
+	if self.Flags&UserName_Flag == UserName_Flag {
+		length += 2 + len(self.User.Name)
+	}
+	if self.Flags&Password_Flag == Password_Flag {
+		length += 2 + len(self.User.Passwd)
+	}
+
+	wire := make([]uint8, length)
 	cursor := UTF8_encode(wire, self.Protocol.Name)
 
 	wire[cursor] = self.Protocol.Level
+	wire[cursor+1] = uint8(self.Flags)
 	cursor += 2 // skip flag
 
 	binary.BigEndian.PutUint16(wire[cursor:], self.KeepAlive)
 	cursor += 2
 	cursor += UTF8_encode(wire[cursor:], self.ClientID)
 
-	if self.Will != nil {
+	if self.Flags&Will_Flag == Will_Flag {
 		cursor += UTF8_encode(wire[cursor:], self.Will.Topic)
 		cursor += UTF8_encode(wire[cursor:], self.Will.Message)
 	}
-	if self.User != nil {
-		if len(self.User.Name) > 0 {
-			cursor += UTF8_encode(wire[cursor:], self.User.Name)
-		}
-		if len(self.User.Passwd) > 0 {
-			cursor += UTF8_encode(wire[cursor:], self.User.Passwd)
-		}
+	if self.Flags&UserName_Flag == UserName_Flag {
+		cursor += UTF8_encode(wire[cursor:], self.User.Name)
 	}
-	wire[3+len(self.Protocol.Name)] = uint8(self.Flags)
+	if self.Flags&Password_Flag == Password_Flag {
+		cursor += UTF8_encode(wire[cursor:], self.User.Passwd)
+	}
 
 	return wire, nil
 }
