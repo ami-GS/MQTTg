@@ -286,7 +286,7 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 }
 
 func (self *ConnectMessage) GetWire() ([]byte, error) {
-	length := 2 + len(self.Protocol.Name) + 2
+	length := 6 + len(self.Protocol.Name) + 2
 	if len(self.ClientID) != 0 {
 		length += len(self.ClientID)
 	}
@@ -494,15 +494,16 @@ func (self *PublishMessage) String() string {
 }
 
 func ParsePublishMessage(fh *FixedHeader, wire []byte) (Message, error) {
-	var topicLen uint16 = uint16((wire[0] << 8) + wire[1])
 	m := &PublishMessage{
 		FixedHeader: fh,
 	}
-	m.TopicName = string(wire[:topicLen])
+	cursor, topicName := UTF8_decode(wire)
+	m.TopicName = topicName
 	if fh.QoS > 0 {
-		m.PacketID = binary.BigEndian.Uint16(wire[topicLen : topicLen+2])
+		m.PacketID = binary.BigEndian.Uint16(wire[cursor:])
+		cursor += 2
 	}
-	m.Payload = wire[topicLen+1:]
+	m.Payload = wire[cursor:]
 
 	return m, nil
 }
