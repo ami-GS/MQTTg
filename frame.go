@@ -450,7 +450,7 @@ type PublishMessage struct {
 	Payload   []uint8
 }
 
-func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16, payload []uint8) *PublishMessage {
+func NewPublishMessage(dup bool, qos uint8, retain bool, topic string, id uint16, payload []uint8) *PublishMessage {
 	QoSexistence := 0
 	if qos > 0 {
 		QoSexistence = 2
@@ -464,7 +464,7 @@ func NewPublishMessage(dub bool, qos uint8, retain bool, topic string, id uint16
 	return &PublishMessage{
 		FixedHeader: NewFixedHeader(
 			Publish,
-			dub, qos, retain,
+			dup, qos, retain,
 			uint32(length), id,
 		),
 		TopicName: topic,
