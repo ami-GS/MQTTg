@@ -479,8 +479,7 @@ func (self *PublishMessage) GetWire() ([]byte, error) {
 	}
 	topicLen := len(self.TopicName)
 	wire := make([]byte, 2+QoSexistence+topicLen+len(self.Payload))
-	binary.BigEndian.PutUint16(wire, uint16(topicLen))
-	copy(wire[2:], []byte(self.TopicName))
+	UTF8_encode(wire, self.TopicName)
 	if self.QoS > 0 {
 		binary.BigEndian.PutUint16(wire[2+topicLen:], self.PacketID)
 	}
@@ -697,13 +696,9 @@ func (self *SubscribeMessage) GetWire() ([]byte, error) {
 	binary.BigEndian.PutUint16(wire, self.PacketID)
 	cursor := 2
 	for _, v := range self.SubscribeTopics {
-		topicLen := len(v.Topic)
-		binary.BigEndian.PutUint16(wire[cursor:], uint16(topicLen))
-		cursor += 2
-
-		copy(wire[cursor+2:cursor+2+topicLen], []uint8(v.Topic))
-		cursor += topicLen
+		cursor += UTF8_encode(wire[cursor:], v.Topic)
 		wire[cursor] = v.QoS
+		cursor++
 	}
 
 	return wire, nil
@@ -723,13 +718,12 @@ func ParseSubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 		FixedHeader: fh,
 	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
-	allLen := len(wire)
-	for i := 2; i < allLen; {
-		topicLen := int(binary.BigEndian.Uint16(wire[i : i+2]))
-		topic := string(wire[i+2 : i+2+topicLen])
+	for i := 2; uint32(i) < fh.RemainLength; {
+		length, topic := UTF8_decode(wire[i:])
+		qos := wire[i+length]
 		m.SubscribeTopics = append(m.SubscribeTopics,
-			*NewSubscribeTopic(topic, wire[i+2+topicLen])) // check
-		i += 3 + topicLen
+			*NewSubscribeTopic(topic, qos))
+		i += length + 1
 	}
 
 	return m, nil
@@ -832,11 +826,7 @@ func (self *UnsubscribeMessage) GetWire() ([]byte, error) {
 
 	cursor := 2
 	for _, v := range self.TopicNames {
-		binary.BigEndian.PutUint16(wire, uint16(len(v)))
-		cursor += 2
-
-		copy(wire[cursor:cursor+len(v)], []uint8(v))
-		cursor += len(v)
+		cursor += UTF8_encode(wire[cursor:], v)
 	}
 
 	return wire, nil
