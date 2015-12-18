@@ -14,6 +14,23 @@ type Broker struct {
 	TopicRoot *TopicNode
 }
 
+func (self *Broker) DisconnectFromBroker(client *ClientInfo) {
+	client.Will = nil
+	client.IsConnecting = false
+	client.KeepAliveTimer.Stop()
+	if client.CleanSession {
+		delete(self.Clients, client.RemoteAddr)
+		delete(self.ClientIDs, client.ID)
+	}
+
+}
+
+func (self *Broker) RunClientTimer(client *ClientInfo) {
+	<-client.KeepAliveTimer.C
+	self.DisconnectFromBroker(client)
+	// TODO: logging?
+}
+
 type ClientInfo struct {
 	*Client
 	KeepAliveTimer *time.Timer
@@ -30,19 +47,6 @@ func NewClientInfo(c *Client, duration time.Duration) *ClientInfo {
 
 func (self *ClientInfo) ResetTimer() {
 	self.KeepAliveTimer.Reset(self.Duration)
-}
-
-func (self *ClientInfo) RunTimer() {
-	<-self.KeepAliveTimer.C
-	self.DisconnectFromBroker()
-	// TODO: logging?
-}
-
-func (self *ClientInfo) DisconnectFromBroker() {
-	self.Will = nil
-	self.IsConnecting = false
-	self.KeepAliveTimer.Stop()
-	// TODO: free used clientID due to clean session?
 }
 
 func (self *Broker) ApplyDummyClientID() string {
@@ -92,15 +96,16 @@ func (self *Broker) ReadLoop() error {
 
 			client, ok = self.Clients[addr]
 			sessionPresent := false
-			if message.Flags&CleanSession_Flag == CleanSession_Flag || !ok {
+			cleanSession := message.Flags&CleanSession_Flag == CleanSession_Flag
+			if cleanSession || !ok {
 				// TODO: need to manage QoS base processing
 				duration := time.Duration(float32(message.KeepAlive) * 100000000 * 1.5)
 				client = NewClientInfo(NewClient(self.Bt, addr, message.ClientID,
-					message.User, message.KeepAlive, message.Will), duration)
+					message.User, message.KeepAlive, message.Will, cleanSession), duration)
 
 				self.Clients[addr] = client
 				self.ClientIDs[message.ClientID] = client
-			} else if message.Flags&CleanSession_Flag != CleanSession_Flag || ok {
+			} else if !cleanSession || ok {
 				sessionPresent = true
 			}
 
@@ -111,7 +116,7 @@ func (self *Broker) ReadLoop() error {
 
 			}
 
-			go client.RunTimer()
+			go self.RunClientTimer(client)
 			err = self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
 			client.IsConnecting = true
 		case *PublishMessage:
@@ -121,7 +126,7 @@ func (self *Broker) ReadLoop() error {
 			}
 			if message.QoS == 3 {
 				EmitError(INVALID_QOS_3)
-				client.DisconnectFromBroker()
+				self.DisconnectFromBroker(client)
 				continue
 			}
 
@@ -233,13 +238,13 @@ func (self *Broker) ReadLoop() error {
 			}
 			err = client.SendMessage(NewPingrespMessage())
 			client.ResetTimer()
-			go client.RunTimer()
+			go self.RunClientTimer(client)
 		case *DisconnectMessage:
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
 				continue
 			}
-			client.DisconnectFromBroker()
+			self.DisconnectFromBroker(client)
 			// close the client
 		default:
 			// when invalid messages come
