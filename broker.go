@@ -95,18 +95,16 @@ func (self *Broker) ReadLoop() error {
 			// TODO: authorization
 
 			client, ok = self.Clients[addr]
-			sessionPresent := false
+			sessionPresent := ok
 			cleanSession := message.Flags&CleanSession_Flag == CleanSession_Flag
 			if cleanSession || !ok {
 				// TODO: need to manage QoS base processing
 				duration := time.Duration(float32(message.KeepAlive) * 100000000 * 1.5)
 				client = NewClientInfo(NewClient(self.Bt, addr, message.ClientID,
 					message.User, message.KeepAlive, message.Will, cleanSession), duration)
-
 				self.Clients[addr] = client
 				self.ClientIDs[message.ClientID] = client
-			} else if !cleanSession || ok {
-				sessionPresent = true
+				sessionPresent = false
 			}
 
 			if message.Flags&Will_Flag == Will_Flag {
