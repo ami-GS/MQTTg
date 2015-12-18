@@ -23,17 +23,18 @@ type Client struct {
 	Ct           *Transport
 	IsConnecting bool
 	//Addr         *net.UDPAddr
-	RemoteAddr  *net.UDPAddr
-	ID          string
-	User        *User
-	KeepAlive   uint16
-	Will        *Will
-	SubTopics   []SubscribeTopic
-	PingBegin   time.Time
-	PacketIDMap map[uint16]Message
+	RemoteAddr   *net.UDPAddr
+	ID           string
+	User         *User
+	KeepAlive    uint16
+	Will         *Will
+	SubTopics    []SubscribeTopic
+	PingBegin    time.Time
+	PacketIDMap  map[uint16]Message
+	CleanSession bool
 }
 
-func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
+func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will, cleanSession bool) *Client {
 	// TODO: when id is empty, then apply random
 	return &Client{
 		Ct:           t,
@@ -45,6 +46,7 @@ func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive
 		Will:         will,
 		SubTopics:    make([]SubscribeTopic, 0),
 		PacketIDMap:  make(map[uint16]Message, 0),
+		CleanSession: cleanSession,
 	}
 }
 
