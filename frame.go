@@ -54,7 +54,7 @@ func ReadFrame(wire []byte) (Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	ms, err := ParseMessage[fh.Type](fh, wire)
+	ms, err := ParseMessage[fh.Type](fh, wire[:fh.RemainLength])
 	if err != nil {
 		return nil, err
 	}
