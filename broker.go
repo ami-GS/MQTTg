@@ -65,6 +65,12 @@ func (self *Broker) ReadLoop() error {
 
 		switch message := m.(type) {
 		case *ConnectMessage:
+			if ok && client.IsConnecting {
+				EmitError(PROTOCO_VIOLATION)
+				self.DisconnectFromBroker(client)
+				continue
+			}
+
 			if message.Protocol.Level != MQTT_3_1_1.Level {
 				// CHECK: Is false correct?
 				err = self.Bt.SendMessage(NewConnackMessage(false, UnacceptableProtocolVersion), addr)

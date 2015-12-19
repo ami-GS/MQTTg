@@ -714,13 +714,21 @@ func (self *SubscribeMessage) String() string {
 }
 
 func ParseSubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	if len(wire) == 0 {
+		return nil, PROTOCOL_VIOLATION
+	}
 	m := &SubscribeMessage{
 		FixedHeader: fh,
 	}
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	for i := 2; uint32(i) < fh.RemainLength; {
 		length, topic := UTF8_decode(wire[i:])
-		qos := wire[i+length]
+		if wire[i+length] == 3 {
+			return nil, INVALID_QOS_3
+		} else if wire[i+length] > 3 {
+			return nil, MALFORMED_SUBSCRIBE_RESERVE_PART
+		}
+		qos := wire[i+length] & 0x03
 		m.SubscribeTopics = append(m.SubscribeTopics,
 			*NewSubscribeTopic(topic, qos))
 		i += length + 1
@@ -841,6 +849,9 @@ func (self *UnsubscribeMessage) String() string {
 }
 
 func ParseUnsubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
+	if len(wire) == 0 {
+		return nil, PROTOCOL_VIOLATION
+	}
 	m := &UnsubscribeMessage{
 		FixedHeader: fh,
 	}
