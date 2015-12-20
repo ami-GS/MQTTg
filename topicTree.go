@@ -83,22 +83,19 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 
 }
 
-func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) (map[string]string, SubscribeReturnCode, error) {
+func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) ([]*TopicNode, []SubscribeReturnCode, error) {
 	// find topic edge and apply the clientID
 	edges, err := self.GetTopicNodes(topic)
 	if err != nil {
-		return nil, SubscribeFailure, err
+		return nil, []SubscribeReturnCode{SubscribeFailure}, err
 	}
-	retains := make(map[string]string)
-	for _, edge := range edges {
+	codes := make([]SubscribeReturnCode, len(edges))
+	for i, edge := range edges {
+		// TODO: the return code should be managed by broker
 		edge.Subscribers[clientID] = qos
-		if len(edge.RetainMessage) > 0 {
-			// TODO: this is only for one topic,
-			// this should be adjust for wildcard
-			retains[topic] = edge.RetainMessage
-		}
+		codes[i] = SubscribeReturnCode(qos)
 	}
-	return retains, SubscribeReturnCode(qos), nil
+	return edges, codes, nil
 }
 
 func (self *TopicNode) DeleteSubscriber(clientID, topic string) error {
