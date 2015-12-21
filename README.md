@@ -5,4 +5,5 @@ MQTT version 3.1.1 implement in Golang following [HERE](http://docs.oasis-open.o
 
 #### TODO
 1. write test
-2. wild card processing for topic name
+2. Encryption & Authentication
+3. Error handling
