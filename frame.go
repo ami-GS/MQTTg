@@ -726,7 +726,7 @@ func ParseSubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 		if wire[i+length] == 3 {
 			return nil, INVALID_QOS_3
 		} else if wire[i+length] > 3 {
-			return nil, MALFORMED_SUBSCRIBE_RESERVE_PART
+			return nil, MALFORMED_SUBSCRIBE_RESERVED_PART
 		}
 		qos := wire[i+length] & 0x03
 		m.SubscribeTopics = append(m.SubscribeTopics,

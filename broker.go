@@ -66,7 +66,7 @@ func (self *Broker) ReadLoop() error {
 		switch message := m.(type) {
 		case *ConnectMessage:
 			if ok && client.IsConnecting {
-				EmitError(PROTOCO_VIOLATION)
+				EmitError(PROTOCOL_VIOLATION)
 				self.DisconnectFromBroker(client)
 				continue
 			}
