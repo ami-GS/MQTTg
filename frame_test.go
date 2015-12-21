@@ -254,3 +254,75 @@ func TestPubcompMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
 }
+
+func TestSubscribeMessage(t *testing.T) {
+	id := uint16(5)
+	topics := make([]SubscribeTopic, 2)
+	topics[0] = *NewSubscribeTopic("daiki/topic1", 1)
+	topics[1] = *NewSubscribeTopic("daiki/topic2", 2)
+	length := 2 + 3*len(topics)
+	for _, v := range topics {
+		length += len(v.Topic)
+	}
+	fh := NewFixedHeader(Subscribe, false, 1, false, uint32(length), id)
+	e_m := &SubscribeMessage{
+		FixedHeader:     fh,
+		SubscribeTopics: topics,
+	}
+	a_m := NewSubscribeMessage(id, topics)
+
+	if !reflect.DeepEqual(a_m, e_m) {
+		t.Errorf("got %v\nwant %v", a_m, e_m)
+	}
+
+	a_wire, _ := a_m.GetWire()
+	e_wire := make([]byte, length)
+	binary.BigEndian.PutUint16(e_wire, id)
+	nxt := 2
+	for _, topic := range topics {
+		nxt += UTF8_encode(e_wire[nxt:], topic.Topic)
+		e_wire[nxt] = topic.QoS
+		nxt++
+	}
+
+	if !reflect.DeepEqual(a_wire, e_wire) {
+		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
+	}
+
+	a_mm, _ := ParseSubscribeMessage(fh, a_wire)
+	if !reflect.DeepEqual(a_mm, e_m) {
+		t.Errorf("got %v\nwant %v", a_mm, e_m)
+	}
+}
+
+func TestSubackMessage(t *testing.T) {
+	id := uint16(5)
+	codes := []SubscribeReturnCode{AckMaxQoS1, SubscribeFailure}
+	length := uint32(len(codes) + 2)
+	fh := NewFixedHeader(Suback, false, 0, false, length, id)
+	e_m := &SubackMessage{
+		FixedHeader: fh,
+		ReturnCodes: codes,
+	}
+	a_m := NewSubackMessage(id, codes)
+
+	if !reflect.DeepEqual(a_m, e_m) {
+		t.Errorf("got %v\nwant %v", a_m, e_m)
+	}
+
+	a_wire, _ := a_m.GetWire()
+	e_wire := make([]byte, length)
+	binary.BigEndian.PutUint16(e_wire, id)
+	for i, v := range codes {
+		e_wire[2+i] = uint8(v)
+	}
+
+	if !reflect.DeepEqual(a_wire, e_wire) {
+		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
+	}
+
+	a_mm, _ := ParseSubackMessage(fh, a_wire)
+	if !reflect.DeepEqual(a_mm, e_m) {
+		t.Errorf("got %v\nwant %v", a_mm, e_m)
+	}
+}
