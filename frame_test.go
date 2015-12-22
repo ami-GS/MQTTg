@@ -339,6 +339,35 @@ func TestSubackMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
 }
+
+func TestUnsubscribeMessage(t *testing.T) {
+	id := uint16(5)
+	topics := []string{"topic/topic1", "topic/topic2"}
+	length := uint32(30)
+	fh := NewFixedHeader(Unsubscribe, false, 1, false, length, id)
+	e_m := &UnsubscribeMessage{
+		FixedHeader: fh,
+		TopicNames:  topics,
+	}
+	a_m := NewUnsubscribeMessage(id, topics)
+
+	if !reflect.DeepEqual(a_m, e_m) {
+		t.Errorf("got %v\nwant %v", a_m, e_m)
+	}
+
+	a_wire, _ := a_m.GetWire()
+	fh_wire := fh.GetWire()
+	e_wire := make([]byte, len(fh_wire)+int(length))
+	copy(e_wire, fh_wire)
+	binary.BigEndian.PutUint16(e_wire[len(fh_wire):], id)
+	UTF8_encode(e_wire[len(fh_wire)+2:], topics[0])
+	UTF8_encode(e_wire[len(fh_wire)+4+len(topics[0]):], topics[1])
+
+	if !reflect.DeepEqual(a_wire, e_wire) {
+		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
+	}
+
+	a_mm, _ := ParseUnsubscribeMessage(fh, a_wire[len(fh_wire):])
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
