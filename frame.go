@@ -805,14 +805,13 @@ func ParseSubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
 
 type UnsubscribeMessage struct {
 	*FixedHeader
-	PacketID   uint16
 	TopicNames []string
 }
 
 func NewUnsubscribeMessage(id uint16, topics []string) *UnsubscribeMessage {
 	length := 2 + 2*len(topics)
 	for _, v := range topics {
-		length = len(v)
+		length += len(v)
 	}
 	return &UnsubscribeMessage{
 		FixedHeader: NewFixedHeader(
