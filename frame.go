@@ -109,7 +109,7 @@ func (self *FixedHeader) GetWire() (wire []byte) {
 }
 
 func (self *FixedHeader) String() string {
-	return fmt.Sprintf("[%s]\nDupulicate=%b, QoS=%d, Retain=%b, Remain Length=%d",
+	return fmt.Sprintf("[%s]\nDupulicate=%t, QoS=%d, Retain=%t, Remain Length=%d",
 		self.Type.String(), self.Dup, self.QoS, self.Retain, self.RemainLength)
 }
 
@@ -243,7 +243,7 @@ func NewWill(topic, message string, retain bool, qos uint8) *Will {
 }
 
 func (self *Will) String() string {
-	return fmt.Sprintf("%s:%s, Retain=%b, QoS=%d", self.Topic, self.Message, self.Retain, self.QoS)
+	return fmt.Sprintf("%s:%s, Retain=%t, QoS=%d", self.Topic, self.Message, self.Retain, self.QoS)
 }
 
 func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, will *Will, user *User) *ConnectMessage {
@@ -434,7 +434,7 @@ func (self *ConnackMessage) GetWire() ([]byte, error) {
 }
 
 func (self *ConnackMessage) String() string {
-	return fmt.Sprintf("%s\n\tSession presentation=%b, Return code=%s\n",
+	return fmt.Sprintf("%s\n\tSession presentation=%t, Return code=%s\n",
 		self.FixedHeader.String(), self.SessionPresentFlag, self.ReturnCode.String())
 }
 
