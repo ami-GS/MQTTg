@@ -50,11 +50,11 @@ func (self MessageType) String() string {
 
 func ReadFrame(wire []byte) (Message, error) {
 	// TODO: The argument should be considered (like io.Reader)
-	fh, err := ParseFixedHeader(wire) // This causes error
+	fh, fhLen, err := ParseFixedHeader(wire) // This causes error
 	if err != nil {
 		return nil, err
 	}
-	ms, err := ParseMessage[fh.Type](fh, wire[:fh.RemainLength])
+	ms, err := ParseMessage[fh.Type](fh, wire[fhLen:fhLen+int(fh.RemainLength)])
 	if err != nil {
 		return nil, err
 	}
@@ -905,7 +905,7 @@ func (self *UnsubackMessage) GetWire() ([]byte, error) {
 	fh_wire := self.FixedHeader.GetWire()
 	wire := make([]byte, 4)
 	copy(wire, fh_wire)
-	binary.BigEndian.PutUint16(wire, self.PacketID)
+	binary.BigEndian.PutUint16(wire[2:], self.PacketID)
 
 	return wire, nil
 }
