@@ -376,3 +376,130 @@ func TestUnsubscribeMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
 }
+
+func TestUnsubackMessage(t *testing.T) {
+	id := uint16(5)
+	fh := NewFixedHeader(Unsuback, false, 0, false, 2, id)
+	e_m := &UnsubackMessage{
+		FixedHeader: fh,
+	}
+	a_m := NewUnsubackMessage(id)
+
+	if !reflect.DeepEqual(a_m, e_m) {
+		t.Errorf("got %v\nwant %v", a_m, e_m)
+	}
+
+	a_wire, _ := a_m.GetWire()
+	fh_wire := fh.GetWire()
+	e_wire := make([]byte, 4)
+	copy(e_wire, fh_wire)
+	binary.BigEndian.PutUint16(e_wire[2:], id)
+
+	if !reflect.DeepEqual(a_wire, e_wire) {
+		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
+	}
+
+	a_mm, _ := ParseUnsubackMessage(fh, a_wire[len(fh_wire):])
+	if !reflect.DeepEqual(a_mm, e_m) {
+		t.Errorf("got %v\nwant %v", a_mm, e_m)
+	}
+}
+
+func TestPingreqMessage(t *testing.T) {
+	fh := NewFixedHeader(Pingreq, false, 0, false, 0, 0)
+	e_m := &PingreqMessage{
+		FixedHeader: fh,
+	}
+	a_m := NewPingreqMessage()
+
+	if !reflect.DeepEqual(a_m, e_m) {
+		t.Errorf("got %v\nwant %v", a_m, e_m)
+	}
+
+	a_wire, _ := a_m.GetWire()
+	fh_wire := fh.GetWire()
+
+	if !reflect.DeepEqual(a_wire, fh_wire) {
+		t.Errorf("got %v\n\t want %v", a_wire, fh_wire)
+	}
+
+	a_mm, _ := ParsePingreqMessage(fh, a_wire[len(fh_wire):])
+	if !reflect.DeepEqual(a_mm, e_m) {
+		t.Errorf("got %v\nwant %v", a_mm, e_m)
+	}
+}
+
+func TestPingrespMessage(t *testing.T) {
+	fh := NewFixedHeader(Pingresp, false, 0, false, 0, 0)
+	e_m := &PingrespMessage{
+		FixedHeader: fh,
+	}
+	a_m := NewPingrespMessage()
+
+	if !reflect.DeepEqual(a_m, e_m) {
+		t.Errorf("got %v\nwant %v", a_m, e_m)
+	}
+
+	a_wire, _ := a_m.GetWire()
+	fh_wire := fh.GetWire()
+
+	if !reflect.DeepEqual(a_wire, fh_wire) {
+		t.Errorf("got %v\n\t want %v", a_wire, fh_wire)
+	}
+
+	a_mm, _ := ParsePingrespMessage(fh, a_wire[len(fh_wire):])
+	if !reflect.DeepEqual(a_mm, e_m) {
+		t.Errorf("got %v\nwant %v", a_mm, e_m)
+	}
+}
+
+func TestDisconnectMessage(t *testing.T) {
+	fh := NewFixedHeader(Disconnect, false, 0, false, 0, 0)
+	e_m := &DisconnectMessage{
+		FixedHeader: fh,
+	}
+	a_m := NewDisconnectMessage()
+
+	if !reflect.DeepEqual(a_m, e_m) {
+		t.Errorf("got %v\nwant %v", a_m, e_m)
+	}
+
+	a_wire, _ := a_m.GetWire()
+	fh_wire := fh.GetWire()
+
+	if !reflect.DeepEqual(a_wire, fh_wire) {
+		t.Errorf("got %v\n\t want %v", a_wire, fh_wire)
+	}
+
+	a_mm, _ := ParseDisconnectMessage(fh, a_wire[len(fh_wire):])
+	if !reflect.DeepEqual(a_mm, e_m) {
+		t.Errorf("got %v\nwant %v", a_mm, e_m)
+	}
+}
+
+func TestReadFrame(t *testing.T) {
+	keepAlive := uint16(10)
+	id := "my-ID"
+	flags := Will_Flag | WillQoS_1_Flag | WillRetain_Flag | Password_Flag | UserName_Flag
+	will := NewWill("daiki/will", "message", true, 1)
+	user := NewUser("daiki", "pass")
+	length := uint32(16 + len(MQTT_3_1_1.Name+id+will.Topic+will.Message+user.Name+user.Passwd))
+	fh := NewFixedHeader(Connect, false, 0, false, length, 0)
+	e_m := &ConnectMessage{
+		FixedHeader: fh,
+		Protocol:    MQTT_3_1_1,
+		Flags:       flags,
+		KeepAlive:   keepAlive,
+		ClientID:    id,
+		Will:        will,
+		User:        user,
+	}
+
+	wire, _ := e_m.GetWire()
+	a_m, _ := ReadFrame(wire)
+
+	if !reflect.DeepEqual(a_m, e_m) {
+		t.Errorf("got %v\nwant %v", a_m, e_m)
+	}
+
+}
