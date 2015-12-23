@@ -50,9 +50,12 @@ func TestRemainEncodeDecode(t *testing.T) {
 	}
 
 	for i, data := range e_wires {
-		a_data, _ := RemainDecode(data)
+		a_data, a_len, _ := RemainDecode(data)
 		if a_data != exData[i] {
 			t.Errorf("got %v\nwant %v", a_data, exData[i])
+		}
+		if len(data) != a_len {
+			t.Errorf("got %v\nwant %v", a_len, len(data))
 		}
 	}
 

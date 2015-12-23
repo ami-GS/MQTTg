@@ -29,10 +29,11 @@ func RemainEncode(dst []uint8, length uint32) int {
 	return i
 }
 
-func RemainDecode(wire []byte) (uint32, error) {
+func RemainDecode(wire []byte) (uint32, int, error) {
 	m := uint32(1)
 	out := uint32(0)
-	for i := 0; ; i++ {
+	i := 0
+	for ; ; i++ {
 		out += uint32(wire[i]&0x7f) * m
 		m *= 0x80
 
@@ -40,11 +41,11 @@ func RemainDecode(wire []byte) (uint32, error) {
 			break
 		}
 		if m > 2097152 {
-			return 0, MALFORMED_REMAIN_LENGTH
+			return 0, 0, MALFORMED_REMAIN_LENGTH
 			//TODO:error handling
 		}
 	}
-	return out, nil
+	return out, i + 1, nil
 }
 
 type MQTT_ERROR uint8 // for 256 errors
