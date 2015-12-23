@@ -30,10 +30,14 @@ func TestFixedHeader_GetWire(t *testing.T) {
 
 func TestParseFixedHeader(t *testing.T) {
 	dat := []byte{0x3d, 0x01}
-	a_fh, _ := ParseFixedHeader(dat)
+	a_fh, a_fhLen, _ := ParseFixedHeader(dat)
 	e_fh := NewFixedHeader(Publish, true, 2, true, 1, 0)
 	if !reflect.DeepEqual(a_fh, e_fh) {
 		t.Errorf("got %v\nwant %v", a_fh, e_fh)
+	}
+
+	if a_fhLen != 2 {
+		t.Errorf("got %v\nwant %v", a_fhLen, 2)
 	}
 }
 

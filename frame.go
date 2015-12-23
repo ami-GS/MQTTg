@@ -113,7 +113,7 @@ func (self *FixedHeader) String() string {
 		self.Type.String(), self.Dup, self.QoS, self.Retain, self.RemainLength)
 }
 
-func ParseFixedHeader(wire []byte) (*FixedHeader, error) {
+func ParseFixedHeader(wire []byte) (*FixedHeader, int, error) {
 	var dup, retain bool
 	var qos uint8
 	mType := MessageType(wire[0] >> 4)
@@ -122,13 +122,13 @@ func ParseFixedHeader(wire []byte) (*FixedHeader, error) {
 		qos = (wire[0] >> 1) & 0x03
 		retain = wire[0]&0x01 == 0x01
 	}
-	length, err := RemainDecode(wire[1:])
+	length, remainPartLen, err := RemainDecode(wire[1:])
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	h := NewFixedHeader(mType, dup, qos, retain, length, 0)
 
-	return h, nil
+	return h, remainPartLen + 1, nil
 }
 
 type VariableHeader interface {
