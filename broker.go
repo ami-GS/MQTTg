@@ -71,6 +71,12 @@ func (self *Broker) ReadLoop() error {
 				continue
 			}
 
+			if message.Protocol.Name != MQTT_3_1_1.Name {
+				// server MAY disconnect
+				EmitError(INVALID_PROTOCOL_NAME)
+				continue
+			}
+
 			if message.Protocol.Level != MQTT_3_1_1.Level {
 				// CHECK: Is false correct?
 				err = self.Bt.SendMessage(NewConnackMessage(false, UnacceptableProtocolVersion), addr)
@@ -90,6 +96,7 @@ func (self *Broker) ReadLoop() error {
 			}
 
 			if message.Flags&Reserved_Flag == Reserved_Flag {
+				EmitError(MALFORMED_CONNECT_FLAG_BIT)
 				// TODO: disconnect the connection
 				continue
 			}
@@ -247,6 +254,9 @@ func (self *Broker) ReadLoop() error {
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
 				continue
+			}
+			if message.Dup && message.QoS > 0 && message.Retain {
+				EmitError(MALFORMED_FIXED_HEADER_RESERED_BIT)
 			}
 			self.DisconnectFromBroker(client)
 			// close the client
