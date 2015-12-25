@@ -255,9 +255,6 @@ func (self *Broker) ReadLoop() error {
 				EmitError(CLIENT_NOT_EXIST)
 				continue
 			}
-			if message.Dup && message.QoS > 0 && message.Retain {
-				EmitError(MALFORMED_FIXED_HEADER_RESERED_BIT)
-			}
 			self.DisconnectFromBroker(client)
 			// close the client
 		default:

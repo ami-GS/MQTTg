@@ -114,14 +114,25 @@ func (self *FixedHeader) String() string {
 }
 
 func ParseFixedHeader(wire []byte) (*FixedHeader, int, error) {
-	var dup, retain bool
-	var qos uint8
 	mType := MessageType(wire[0] >> 4)
-	if mType == Publish {
-		dup = wire[0]&0x08 == 0x08
-		qos = (wire[0] >> 1) & 0x03
-		retain = wire[0]&0x01 == 0x01
+	dup := wire[0]&0x08 == 0x08
+	qos := uint8((wire[0] >> 1) & 0x03)
+	retain := wire[0]&0x01 == 0x01
+	switch mType {
+	case Pubrel, Subscribe, Unsubscribe:
+		if dup || retain || qos != 1 {
+			return nil, 0, MALFORMED_FIXED_HEADER_RESERVED_BIT
+		}
+	case Publish:
+		if qos == 3 {
+			return nil, 0, INVALID_QOS_3
+		}
+	default:
+		if dup || retain || qos != 0 {
+			return nil, 0, MALFORMED_FIXED_HEADER_RESERVED_BIT
+		}
 	}
+
 	length, remainPartLen, err := RemainDecode(wire[1:])
 	if err != nil {
 		return nil, 0, err
