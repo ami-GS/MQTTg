@@ -127,7 +127,9 @@ func (self *Broker) ReadLoop() error {
 
 			}
 
-			go self.RunClientTimer(client)
+			if message.KeepAlive != 0 {
+				go self.RunClientTimer(client)
+			}
 			err = self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
 			client.IsConnecting = true
 		case *PublishMessage:
@@ -248,8 +250,10 @@ func (self *Broker) ReadLoop() error {
 				continue
 			}
 			err = client.SendMessage(NewPingrespMessage())
-			client.ResetTimer()
-			go self.RunClientTimer(client)
+			if client.KeepAlive != 0 {
+				client.ResetTimer()
+				go self.RunClientTimer(client)
+			}
 		case *DisconnectMessage:
 			if !ok {
 				EmitError(CLIENT_NOT_EXIST)
