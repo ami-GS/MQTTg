@@ -184,12 +184,6 @@ func (self *Client) ReadLoop() error {
 			self.IsConnecting = true
 			self.keepAlive()
 		case *PublishMessage:
-			if message.QoS == 3 {
-				// error
-				// close connection
-				continue
-			}
-
 			if message.Dup {
 				// re-delivered
 			} else if message.Dup {
