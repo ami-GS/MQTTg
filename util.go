@@ -71,7 +71,13 @@ const (
 
 func EmitError(e error) {
 	// TODO: added logging here
-	fmt.Println(e.Error)
+	if e != nil {
+		str := ""
+		if _, t := e.(MQTT_ERROR); t {
+			str += "[MQTT_ERROR] "
+		}
+		fmt.Printf("%s%s\n", str, e.Error())
+	}
 }
 
 func (e MQTT_ERROR) Error() string {
