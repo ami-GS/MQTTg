@@ -167,80 +167,108 @@ func (self *Client) AckMessage(id uint16) error {
 	return nil
 }
 
-func (self *Client) ReadLoop() error {
-	for {
-		m, addr, err := self.Ct.ReadMessageFrom()
-		if err != nil {
-			// TODO: only emit error not to stop this loop --> continue?
-			return err
-		}
-		// TODO: the comparison should be deepequal?
-		if self.RemoteAddr != addr {
-			continue
-		}
-		switch message := m.(type) {
-		case *ConnackMessage:
-			self.AckMessage(message.PacketID)
-			self.IsConnecting = true
-			self.keepAlive()
-		case *PublishMessage:
-			if message.Dup {
-				// re-delivered
-			} else if message.Dup {
-				// first time delivery
-			}
-
-			if message.Retain {
-				// retained message comes
-			} else {
-				// non retained message
-			}
-
-			switch message.QoS {
-			// in any case, Dub must be 0
-			case 0:
-			case 1:
-				err = self.SendMessage(NewPubackMessage(message.PacketID))
-			case 2:
-				err = self.SendMessage(NewPubrecMessage(message.PacketID))
-			}
-		case *PubackMessage:
-			// acknowledge the sent Publish packet
-			if message.PacketID > 0 {
-				err = self.AckMessage(message.PacketID)
-			}
-		case *PubrecMessage:
-			// acknowledge the sent Publish packet
-			err = self.AckMessage(message.PacketID)
-			err = self.SendMessage(NewPubrelMessage(message.PacketID))
-		case *PubrelMessage:
-			// acknowledge the sent Pubrel packet
-			self.AckMessage(message.PacketID)
-			err = self.SendMessage(NewPubcompMessage(message.PacketID))
-		case *PubcompMessage:
-			// acknowledge the sent Pubrel packet
-			self.AckMessage(message.PacketID)
-		case *SubackMessage:
-			// acknowledge the sent subscribe packet
-			self.AckMessage(message.PacketID)
-			for i, code := range message.ReturnCodes {
-				_ = self.AckSubscribeTopic(i, code)
-			}
-		case *UnsubackMessage:
-			// acknowledged the sent unsubscribe packet
-			self.AckMessage(message.PacketID)
-		case *PingrespMessage:
-			elapsed := time.Since(self.PingBegin)
-			self.Ct.duration = elapsed
-			if elapsed.Seconds() >= float64(self.KeepAlive) {
-				// TODO: this must be 'reasonable amount of time'
-				err = self.SendMessage(NewDisconnectMessage())
-			} else {
-				self.keepAlive() // TODO: this make impossible to send ping manually
-			}
-		default:
-			// when invalid messages come
-			err = INVALID_MESSAGE_CAME
-		}
+func (self *Client) recvConnectMessage(m *ConnectMessage, addr *net.UDPAddr) (err error) {
+	return INVALID_MESSAGE_CAME
+}
+func (self *Client) recvConnackMessage(m *ConnackMessage, addr *net.UDPAddr) (err error) {
+	self.AckMessage(m.PacketID)
+	self.IsConnecting = true
+	self.keepAlive()
+	return err
+}
+func (self *Client) recvPublishMessage(m *PublishMessage, addr *net.UDPAddr) (err error) {
+	if m.Dup {
+		// re-delivered
+	} else if m.Dup {
+		// first time delivery
 	}
+
+	if m.Retain {
+		// retained message comes
+	} else {
+		// non retained message
+	}
+
+	switch m.QoS {
+	// in any case, Dub must be 0
+	case 0:
+	case 1:
+		err = self.SendMessage(NewPubackMessage(m.PacketID))
+	case 2:
+		err = self.SendMessage(NewPubrecMessage(m.PacketID))
+	}
+	return err
+}
+
+func (self *Client) recvPubackMessage(m *PubackMessage, addr *net.UDPAddr) (err error) {
+	// acknowledge the sent Publish packet
+	if m.PacketID > 0 {
+		err = self.AckMessage(m.PacketID)
+	}
+	return err
+}
+
+func (self *Client) recvPubrecMessage(m *PubrecMessage, addr *net.UDPAddr) (err error) {
+	// acknowledge the sent Publish packet
+	err = self.AckMessage(m.PacketID)
+	err = self.SendMessage(NewPubrelMessage(m.PacketID))
+	return err
+}
+
+func (self *Client) recvPubrelMessage(m *PubrelMessage, addr *net.UDPAddr) (err error) {
+	// acknowledge the sent Pubrel packet
+	err = self.AckMessage(m.PacketID)
+	err = self.SendMessage(NewPubcompMessage(m.PacketID))
+	return err
+}
+
+func (self *Client) recvPubcompMessage(m *PubcompMessage, addr *net.UDPAddr) (err error) {
+	// acknowledge the sent Pubrel packet
+	err = self.AckMessage(m.PacketID)
+	return err
+}
+
+func (self *Client) recvSubscribeMessage(m *SubscribeMessage, addr *net.UDPAddr) (err error) {
+	return INVALID_MESSAGE_CAME
+}
+
+func (self *Client) recvSubackMessage(m *SubackMessage, addr *net.UDPAddr) (err error) {
+	// acknowledge the sent subscribe packet
+	self.AckMessage(m.PacketID)
+	for i, code := range m.ReturnCodes {
+		_ = self.AckSubscribeTopic(i, code)
+	}
+	return err
+}
+func (self *Client) recvUnsubscribeMessage(m *UnsubscribeMessage, addr *net.UDPAddr) (err error) {
+	return INVALID_MESSAGE_CAME
+}
+func (self *Client) recvUnsubackMessage(m *UnsubackMessage, addr *net.UDPAddr) (err error) {
+	// acknowledged the sent unsubscribe packet
+	err = self.AckMessage(m.PacketID)
+	return err
+}
+
+func (self *Client) recvPingreqMessage(m *PingreqMessage, addr *net.UDPAddr) (err error) {
+	return INVALID_MESSAGE_CAME
+}
+
+func (self *Client) recvPingrespMessage(m *PingrespMessage, addr *net.UDPAddr) (err error) {
+	elapsed := time.Since(self.PingBegin)
+	self.Ct.duration = elapsed
+	if elapsed.Seconds() >= float64(self.KeepAlive) {
+		// TODO: this must be 'reasonable amount of time'
+		err = self.SendMessage(NewDisconnectMessage())
+	} else {
+		self.keepAlive() // TODO: this make impossible to send ping manually
+	}
+	return err
+}
+
+func (self *Client) recvDisconnectMessage(m *DisconnectMessage, addr *net.UDPAddr) (err error) {
+	return INVALID_MESSAGE_CAME
+}
+
+func (self *Client) ReadMessageFrom() (Message, *net.UDPAddr, error) {
+	return self.Ct.ReadMessageFrom()
 }
