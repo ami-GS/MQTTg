@@ -167,6 +167,16 @@ func (self *Client) AckMessage(id uint16) error {
 	return nil
 }
 
+func (self *Client) Redelivery() (err error) {
+	// TODO: Should the DUP flag be 1 ?
+	if !self.CleanSession && len(self.PacketIDMap) > 0 {
+		for _, v := range self.PacketIDMap {
+			err = self.SendMessage(v)
+		}
+	}
+	return err
+}
+
 func (self *Client) recvConnectMessage(m *ConnectMessage, addr *net.UDPAddr) (err error) {
 	return INVALID_MESSAGE_CAME
 }
@@ -174,6 +184,7 @@ func (self *Client) recvConnackMessage(m *ConnackMessage, addr *net.UDPAddr) (er
 	self.AckMessage(m.PacketID)
 	self.IsConnecting = true
 	self.keepAlive()
+	self.Redelivery()
 	return err
 }
 func (self *Client) recvPublishMessage(m *PublishMessage, addr *net.UDPAddr) (err error) {

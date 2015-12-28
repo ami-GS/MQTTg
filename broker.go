@@ -116,6 +116,7 @@ func (self *Broker) recvConnectMessage(m *ConnectMessage, addr *net.UDPAddr) (er
 	}
 	err = self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
 	client.IsConnecting = true
+	client.Redelivery()
 	return err
 }
 
