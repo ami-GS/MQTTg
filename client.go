@@ -54,21 +54,21 @@ func (self *Client) SendMessage(m Message) error {
 	if !self.IsConnecting {
 		return NOT_CONNECTED
 	}
+	id := m.GetPacketID()
+	_, ok := self.PacketIDMap[id]
+	if ok {
+		return PACKET_ID_IS_USED_ALREADY
+	}
+
 	err := self.Ct.SendMessage(m, self.RemoteAddr)
 	if err == nil {
 		switch mess := m.(type) {
 		case *PublishMessage:
 			if mess.PacketID > 0 {
-				self.PacketIDMap[mess.PacketID] = m
+				self.PacketIDMap[id] = m
 			}
-		case *PubrecMessage:
-			self.PacketIDMap[mess.PacketID] = m
-		case *PubrelMessage:
-			self.PacketIDMap[mess.PacketID] = m
-		case *SubscribeMessage:
-			self.PacketIDMap[mess.PacketID] = m
-		case *UnsubscribeMessage:
-			self.PacketIDMap[mess.PacketID] = m
+		case *PubrecMessage, *PubrelMessage, *SubscribeMessage, *UnsubscribeMessage:
+			self.PacketIDMap[id] = m
 		}
 	}
 

@@ -170,6 +170,7 @@ var ParseMessage = map[MessageType]FrameParser{
 type Message interface {
 	GetWire() ([]byte, error)
 	String() string
+	GetPacketID() uint16
 }
 
 type ConnectFlag uint8
@@ -391,6 +392,10 @@ func (self *ConnectMessage) String() string {
 		self.KeepAlive, self.ClientID, self.Will.String(), self.User.Name, self.User.Passwd)
 }
 
+func (self *ConnectMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 type ConnectReturnCode uint8
 
 const (
@@ -447,6 +452,10 @@ func (self *ConnackMessage) GetWire() ([]byte, error) {
 func (self *ConnackMessage) String() string {
 	return fmt.Sprintf("%s\n\tSession presentation=%t, Return code=%s\n",
 		self.FixedHeader.String(), self.SessionPresentFlag, self.ReturnCode.String())
+}
+
+func (self *ConnackMessage) GetPacketID() uint16 {
+	return self.PacketID
 }
 
 func ParseConnackMessage(fh *FixedHeader, wire []byte) (Message, error) {
@@ -509,6 +518,10 @@ func (self *PublishMessage) String() string {
 	return fmt.Sprintf("%s\n\tTopic=%s, PacketID=%d, Data=%s\n", self.FixedHeader.String(), self.TopicName, self.PacketID, string(self.Payload))
 }
 
+func (self *PublishMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 func ParsePublishMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m := &PublishMessage{
 		FixedHeader: fh,
@@ -551,6 +564,10 @@ func (self *PubackMessage) String() string {
 	return fmt.Sprintf("%s\n\tPacketID=%d\n", self.FixedHeader.String(), self.PacketID)
 }
 
+func (self *PubackMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 func ParsePubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m := &PubackMessage{
 		FixedHeader: fh,
@@ -585,6 +602,10 @@ func (self *PubrecMessage) GetWire() ([]byte, error) {
 
 func (self *PubrecMessage) String() string {
 	return fmt.Sprintf("%s\n\tPacketID=%d\n", self.FixedHeader.String(), self.PacketID)
+}
+
+func (self *PubrecMessage) GetPacketID() uint16 {
+	return self.PacketID
 }
 
 func ParsePubrecMessage(fh *FixedHeader, wire []byte) (Message, error) {
@@ -623,6 +644,10 @@ func (self *PubrelMessage) String() string {
 	return fmt.Sprintf("%s\n\tPacketID=%d\n", self.FixedHeader.String(), self.PacketID)
 }
 
+func (self *PubrelMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 func ParsePubrelMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m := &PubrelMessage{
 		FixedHeader: fh,
@@ -657,6 +682,10 @@ func (self *PubcompMessage) GetWire() ([]byte, error) {
 
 func (self *PubcompMessage) String() string {
 	return fmt.Sprintf("%s\n\tPacketID=%d\n", self.FixedHeader.String(), self.PacketID)
+}
+
+func (self *PubcompMessage) GetPacketID() uint16 {
+	return self.PacketID
 }
 
 func ParsePubcompMessage(fh *FixedHeader, wire []byte) (Message, error) {
@@ -741,6 +770,10 @@ func (self *SubscribeMessage) String() string {
 		self.FixedHeader.String(), self.PacketID, topicStrings)
 }
 
+func (self *SubscribeMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 func ParseSubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	if len(wire) == 0 {
 		return nil, PROTOCOL_VIOLATION
@@ -822,6 +855,10 @@ func (self *SubackMessage) String() string {
 	return fmt.Sprintf("%s\n\tPacketID=%d\n%s")
 }
 
+func (self *SubackMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 func ParseSubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m := &SubackMessage{
 		FixedHeader: fh,
@@ -881,6 +918,10 @@ func (self *UnsubscribeMessage) String() string {
 	return fmt.Sprintf("%s\n\tPacketID=%d\n%s", self.FixedHeader.String(), self.PacketID, topics)
 }
 
+func (self *UnsubscribeMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 func ParseUnsubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	if len(wire) == 0 {
 		return nil, PROTOCOL_VIOLATION
@@ -925,6 +966,10 @@ func (self *UnsubackMessage) String() string {
 	return fmt.Sprintf("%s\n\tPacketID=%d\n", self.FixedHeader.String(), self.PacketID)
 }
 
+func (self *UnsubackMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 func ParseUnsubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m := &UnsubackMessage{
 		FixedHeader: fh,
@@ -958,6 +1003,10 @@ func (self *PingreqMessage) String() string {
 	return fmt.Sprintf("%s\n", self.FixedHeader.String())
 }
 
+func (self *PingreqMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 func ParsePingreqMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m := &PingreqMessage{
 		FixedHeader: fh,
@@ -989,6 +1038,10 @@ func (self *PingrespMessage) String() string {
 	return fmt.Sprintf("%s\n", self.FixedHeader.String())
 }
 
+func (self *PingrespMessage) GetPacketID() uint16 {
+	return self.PacketID
+}
+
 func ParsePingrespMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m := &PingrespMessage{
 		FixedHeader: fh,
@@ -1018,6 +1071,10 @@ func (self *DisconnectMessage) GetWire() ([]byte, error) {
 func (self *DisconnectMessage) String() string {
 	// TODO: need to put disconnect message?
 	return fmt.Sprintf("%s\n", self.FixedHeader.String())
+}
+
+func (self *DisconnectMessage) GetPacketID() uint16 {
+	return self.PacketID
 }
 
 func ParseDisconnectMessage(fh *FixedHeader, wire []byte) (Message, error) {
