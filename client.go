@@ -106,8 +106,8 @@ func (self *Client) Connect(addPair string) error {
 	}
 	self.RemoteAddr = udpaddr
 	self.Ct.conn = conn
-	err = self.SendMessage(NewConnectMessage(10, "dummyID",
-		false, nil, NewUser("name", "pass")))
+	err = self.SendMessage(NewConnectMessage(self.KeepAlive,
+		self.ID, self.CleanSession, self.Will, self.User))
 	return err
 }
 
