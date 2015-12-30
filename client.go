@@ -1,6 +1,7 @@
 package MQTTg
 
 import (
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -85,6 +86,18 @@ func (self *Client) AckSubscribeTopic(order int, code SubscribeReturnCode) error
 	return nil
 }
 
+func (self *Client) getUsablePacketID() (uint16, error) {
+	ok := true
+	for trial := 0; ok; trial++ {
+		if trial == 5 {
+			return 0, FAIL_TO_SET_PACKET_ID
+		}
+		id := uint16(1 + rand.Int31n(65535))
+		_, ok = self.PacketIDMap[id]
+	}
+	return id, nil
+}
+
 func (self *Client) Connect(addPair string) error {
 	pair := strings.Split(addPair, ":")
 	if len(pair) != 2 {
@@ -115,14 +128,21 @@ func (self *Client) Publish(topic, data string, qos uint8, retain bool) error {
 	if qos >= 3 {
 		return INVALID_QOS_3
 	}
-	// TODO: id should be considered
-	err := self.SendMessage(NewPublishMessage(false, qos, retain, topic, 0, []uint8(data)))
+	id, err := self.getUsablePacketID()
+	if err != nil {
+		return err
+	}
+	err := self.SendMessage(NewPublishMessage(false, qos, retain,
+		topic, id, []uint8(data)))
 	return err
 }
 
 func (self *Client) Subscribe(topics []SubscribeTopic) error {
-	// TODO: id should be considered
-	err := self.SendMessage(NewSubscribeMessage(0, topics))
+	id, err := self.getUsablePacketID()
+	if err != nil {
+		return err
+	}
+	err := self.SendMessage(NewSubscribeMessage(id, topics))
 	if err == nil {
 		self.SubTopics = append(self.SubTopics, topics...)
 	}
@@ -144,8 +164,12 @@ func (self *Client) Unsubscribe(topics []string) error {
 			// return error
 		}
 	}
-	// id should be conidered
-	err := self.SendMessage(NewUnsubscribeMessage(0, topics))
+
+	id, err := self.getUsablePacketID()
+	if err != nil {
+		return err
+	}
+	err := self.SendMessage(NewUnsubscribeMessage(id, topics))
 	return err
 }
 
