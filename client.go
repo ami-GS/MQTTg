@@ -62,7 +62,7 @@ func (self *Client) SendMessage(m Message) error {
 
 	err := self.Ct.SendMessage(m, self.RemoteAddr)
 	if err == nil {
-		switch mess := m.(type) {
+		switch m.(type) {
 		case *PublishMessage:
 			if id > 0 {
 				self.PacketIDMap[id] = m
