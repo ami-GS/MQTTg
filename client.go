@@ -88,11 +88,12 @@ func (self *Client) AckSubscribeTopic(order int, code SubscribeReturnCode) error
 
 func (self *Client) getUsablePacketID() (uint16, error) {
 	ok := true
+	var id uint16
 	for trial := 0; ok; trial++ {
 		if trial == 5 {
 			return 0, FAIL_TO_SET_PACKET_ID
 		}
-		id := uint16(1 + rand.Int31n(65535))
+		id = uint16(1 + rand.Int31n(65535))
 		_, ok = self.PacketIDMap[id]
 	}
 	return id, nil
@@ -132,7 +133,7 @@ func (self *Client) Publish(topic, data string, qos uint8, retain bool) error {
 	if err != nil {
 		return err
 	}
-	err := self.SendMessage(NewPublishMessage(false, qos, retain,
+	err = self.SendMessage(NewPublishMessage(false, qos, retain,
 		topic, id, []uint8(data)))
 	return err
 }
@@ -142,7 +143,7 @@ func (self *Client) Subscribe(topics []SubscribeTopic) error {
 	if err != nil {
 		return err
 	}
-	err := self.SendMessage(NewSubscribeMessage(id, topics))
+	err = self.SendMessage(NewSubscribeMessage(id, topics))
 	if err == nil {
 		self.SubTopics = append(self.SubTopics, topics...)
 	}
@@ -169,7 +170,7 @@ func (self *Client) Unsubscribe(topics []string) error {
 	if err != nil {
 		return err
 	}
-	err := self.SendMessage(NewUnsubscribeMessage(id, topics))
+	err = self.SendMessage(NewUnsubscribeMessage(id, topics))
 	return err
 }
 
