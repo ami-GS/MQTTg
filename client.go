@@ -111,6 +111,15 @@ func (self *Client) Connect(addPair string) error {
 	return err
 }
 
+func (self *Client) Publish(topic, data string, qos uint8, retain bool) error {
+	if qos >= 3 {
+		return INVALID_QOS_3
+	}
+	// TODO: id should be considered
+	err := self.SendMessage(NewPublishMessage(false, qos, retain, topic, 0, []uint8(data)))
+	return err
+}
+
 func (self *Client) Subscribe(topics []SubscribeTopic) error {
 	// TODO: id should be considered
 	err := self.SendMessage(NewSubscribeMessage(0, topics))
