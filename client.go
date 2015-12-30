@@ -64,7 +64,7 @@ func (self *Client) SendMessage(m Message) error {
 	if err == nil {
 		switch mess := m.(type) {
 		case *PublishMessage:
-			if mess.PacketID > 0 {
+			if id > 0 {
 				self.PacketIDMap[id] = m
 			}
 		case *PubrecMessage, *PubrelMessage, *SubscribeMessage, *UnsubscribeMessage:
