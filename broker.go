@@ -80,15 +80,6 @@ func (self *Broker) recvConnectMessage(m *ConnectMessage, addr *net.UDPAddr) (er
 	if len(m.ClientID) == 0 {
 		m.ClientID = self.ApplyDummyClientID()
 	}
-
-	if m.Flags&Reserved_Flag == Reserved_Flag {
-		// TODO: disconnect the connection
-		return MALFORMED_CONNECT_FLAG_BIT
-	}
-
-	if m.Flags&UserName_Flag != UserName_Flag && m.Flags&Password_Flag == Password_Flag {
-		return USERNAME_DOES_NOT_EXIST_WITH_PASSWORD
-	}
 	// TODO: authorization
 
 	client, ok = self.Clients[addr]

@@ -347,14 +347,16 @@ func ParseConnectMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	}
 	cursor, protoName := UTF8_decode(wire)
 	level := wire[cursor]
-	if MQTT_3_1_1.Name != protoName {
-	}
-	if MQTT_3_1_1.Level != level {
-	}
 	// TODO: validate protocol version
 	m.Protocol = &Protocol{protoName, level}
 
 	m.Flags = ConnectFlag(wire[cursor+1])
+	if m.Flags&Reserved_Flag == Reserved_Flag {
+		return nil, MALFORMED_CONNECT_FLAG_BIT
+	}
+	if m.Flags&UserName_Flag != UserName_Flag && m.Flags&Password_Flag == Password_Flag {
+		return nil, USERNAME_DOES_NOT_EXIST_WITH_PASSWORD
+	}
 	cursor += 2
 	m.KeepAlive = binary.BigEndian.Uint16(wire[cursor:])
 	cursor += 2
