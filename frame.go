@@ -3,6 +3,7 @@ package MQTTg
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 )
 
 type MessageType uint8
@@ -527,6 +528,9 @@ func ParsePublishMessage(fh *FixedHeader, wire []byte) (Message, error) {
 		FixedHeader: fh,
 	}
 	cursor, topicName := UTF8_decode(wire)
+	if strings.Contains(topicName, "#") || strings.Contains(topicName, "+") {
+		return nil, WILDCARD_CHARACTERS_IN_PUBLISH
+	}
 	m.TopicName = topicName
 	if fh.QoS > 0 {
 		m.PacketID = binary.BigEndian.Uint16(wire[cursor:])

@@ -129,6 +129,10 @@ func (self *Client) Publish(topic, data string, qos uint8, retain bool) error {
 	if qos >= 3 {
 		return INVALID_QOS_3
 	}
+	if strings.Contains(topic, "#") || strings.Contains(topic, "+") {
+		return WILDCARD_CHARACTERS_IN_PUBLISH
+	}
+
 	id, err := self.getUsablePacketID()
 	if err != nil {
 		return err

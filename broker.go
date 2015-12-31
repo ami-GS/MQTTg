@@ -127,11 +127,8 @@ func (self *Broker) recvConnackMessage(m *ConnackMessage, addr *net.UDPAddr) (er
 func (self *Broker) recvPublishMessage(m *PublishMessage, addr *net.UDPAddr) (err error) {
 	client, ok := self.Clients[addr]
 	if !ok {
-		return CLIENT_NOT_EXIST
-	}
-	if m.QoS == 3 {
 		self.DisconnectFromBroker(client)
-		return INVALID_QOS_3
+		return CLIENT_NOT_EXIST
 	}
 
 	if m.Dup {
