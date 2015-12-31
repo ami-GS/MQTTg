@@ -148,6 +148,15 @@ func (self *Broker) recvPublishMessage(m *PublishMessage, addr *net.UDPAddr) (er
 		self.TopicRoot.ApplyRetain(m.TopicName, m.QoS, data)
 	}
 
+	nodes, err := self.TopicRoot.GetTopicNodes(m.TopicName)
+	if err != nil {
+		return err
+	}
+	for subscriberID, qos := range nodes[0].Subscribers {
+		subscriber, _ := self.ClientIDs[subscriberID]
+		subscriber.Publish(m.TopicName, string(m.Payload), qos, false)
+	}
+
 	switch m.QoS {
 	// in any case, Dub must be 0
 	case 0:
