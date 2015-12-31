@@ -35,7 +35,7 @@ type Client struct {
 	CleanSession bool
 }
 
-func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will, cleanSession bool) *Client {
+func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
 	// TODO: when id is empty, then apply random
 	return &Client{
 		Ct:           t,
@@ -47,7 +47,7 @@ func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive
 		Will:         will,
 		SubTopics:    make([]SubscribeTopic, 0),
 		PacketIDMap:  make(map[uint16]Message, 0),
-		CleanSession: cleanSession,
+		CleanSession: false,
 	}
 }
 
@@ -99,7 +99,7 @@ func (self *Client) getUsablePacketID() (uint16, error) {
 	return id, nil
 }
 
-func (self *Client) Connect(addPair string) error {
+func (self *Client) Connect(addPair string, cleanSession bool) error {
 	pair := strings.Split(addPair, ":")
 	if len(pair) != 2 {
 		return nil // TODO: apply error
@@ -120,8 +120,9 @@ func (self *Client) Connect(addPair string) error {
 	}
 	self.RemoteAddr = udpaddr
 	self.Ct.conn = conn
+	self.CleanSession = cleanSession
 	err = self.SendMessage(NewConnectMessage(self.KeepAlive,
-		self.ID, self.CleanSession, self.Will, self.User))
+		self.ID, cleanSession, self.Will, self.User))
 	return err
 }
 
