@@ -121,6 +121,7 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	self.RemoteAddr = udpaddr
 	self.Ct.conn = conn
 	self.CleanSession = cleanSession
+	go ReadLoop(self)
 	err = self.SendMessage(NewConnectMessage(self.KeepAlive,
 		self.ID, cleanSession, self.Will, self.User))
 	return err
