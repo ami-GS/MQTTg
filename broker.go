@@ -7,59 +7,70 @@ import (
 )
 
 type Broker struct {
-	Bt *Transport
+	MyAddr *net.TCPAddr
 	// TODO: check whether not good to use addr as key
-	Clients   map[*net.UDPAddr]*ClientInfo // map[addr]*ClientInfo
-	ClientIDs map[string]*ClientInfo       // map[clientID]*ClientInfo
-	TopicRoot *TopicNode
+	Clients          map[*net.TCPAddr]*Client // map[addr]*ClientInfo
+	ClientIDtoClient map[string]*Client
+	ClientIDs        []string
+	TopicRoot        *TopicNode
 }
 
-func (self *Broker) DisconnectFromBroker(client *ClientInfo) {
+func (self *Broker) Start() error {
+	listener, err := net.ListenTCP("tcp4", self.MyAddr)
+	if err != nil {
+		// TODO: use channel to return error
+		return err
+	}
+	for {
+		conn, err := listener.AcceptTCP()
+		if err != nil {
+			// TODO: use channel to return error
+			EmitError(err)
+			continue
+		}
+		client := NewClient(&Transport{conn}, "", nil, 0, nil)
+		go ReadLoop(self, client)
+	}
+}
+
+func (self *Broker) DisconnectFromBroker(client *Client) {
 	client.Will = nil
 	client.IsConnecting = false
 	client.KeepAliveTimer.Stop()
 	if client.CleanSession {
-		delete(self.Clients, client.RemoteAddr)
-		delete(self.ClientIDs, client.ID)
+		newIDs := make([]string, len(self.ClientIDs)-1)
+		j := 0
+		for i := 0; i < len(self.ClientIDs); i++ {
+			if self.ClientIDs[i] != client.ID {
+				newIDs[j] = self.ClientIDs[i]
+				j++
+			}
+		}
+		self.ClientIDs = newIDs
 	}
 
 }
 
-func (self *Broker) RunClientTimer(client *ClientInfo) {
+func (self *Broker) RunClientTimer(client *Client) {
 	<-client.KeepAliveTimer.C
 	self.DisconnectFromBroker(client)
 	// TODO: logging?
 }
 
-type ClientInfo struct {
-	*Client
-	KeepAliveTimer *time.Timer
-	Duration       time.Duration
-}
-
-func NewClientInfo(c *Client, duration time.Duration) *ClientInfo {
-	return &ClientInfo{
-		Client:         c,
-		KeepAliveTimer: time.NewTimer(duration),
-		Duration:       duration,
+func (self *Broker) ExistsClientID(id string) bool {
+	for _, ID := range self.ClientIDs {
+		if ID == id {
+			return true
+		}
 	}
-}
-
-func (self *ClientInfo) ResetTimer() {
-	self.KeepAliveTimer.Reset(self.Duration)
+	return false
 }
 
 func (self *Broker) ApplyDummyClientID() string {
 	return "DummyClientID:" + strconv.Itoa(len(self.ClientIDs)+1)
 }
 
-func (self *Broker) recvConnectMessage(m *ConnectMessage, addr *net.UDPAddr) (err error) {
-	client, ok := self.Clients[addr]
-	if ok && client.IsConnecting {
-		self.DisconnectFromBroker(client)
-		return PROTOCOL_VIOLATION
-	}
-
+func (self *Broker) recvConnectMessage(m *ConnectMessage, c *Client) (err error) {
 	if m.Protocol.Name != MQTT_3_1_1.Name {
 		// server MAY disconnect
 		return INVALID_PROTOCOL_NAME
@@ -67,14 +78,15 @@ func (self *Broker) recvConnectMessage(m *ConnectMessage, addr *net.UDPAddr) (er
 
 	if m.Protocol.Level != MQTT_3_1_1.Level {
 		// CHECK: Is false correct?
-		err = self.Bt.SendMessage(NewConnackMessage(false, UnacceptableProtocolVersion), addr)
+		err = c.SendMessage(NewConnackMessage(false, UnacceptableProtocolVersion))
 		return INVALID_PROTOCOL_LEVEL
 	}
 
-	_, ok = self.ClientIDs[m.ClientID]
+	c, ok := self.ClientIDtoClient[m.ClientID]
+	//ok := self.ExistsClientID(m.ClientID)
 	if ok {
 		// TODO: this might cause problem
-		err = self.Bt.SendMessage(NewConnackMessage(false, IdentifierRejected), addr)
+		err = c.SendMessage(NewConnackMessage(false, IdentifierRejected))
 		return CLIENT_ID_IS_USED_ALREADY
 	}
 	if len(m.ClientID) == 0 {
@@ -82,46 +94,42 @@ func (self *Broker) recvConnectMessage(m *ConnectMessage, addr *net.UDPAddr) (er
 	}
 	// TODO: authorization
 
-	client, ok = self.Clients[addr]
 	sessionPresent := ok
 	cleanSession := m.Flags&CleanSession_Flag == CleanSession_Flag
 	if cleanSession || !ok {
 		// TODO: need to manage QoS base processing
-		duration := time.Duration(float32(m.KeepAlive) * 100000000 * 1.5)
-		client = NewClientInfo(NewClient(self.Bt, addr, m.ClientID,
-			m.User, m.KeepAlive, m.Will, cleanSession), duration)
-		self.Clients[addr] = client
-		self.ClientIDs[m.ClientID] = client
+		c.Duration = time.Duration(float32(m.KeepAlive) * 100000000 * 1.5)
+		c.ID = m.ClientID
+		c.User = m.User
+		c.KeepAlive = m.KeepAlive
+		c.Will = m.Will
+		c.CleanSession = cleanSession
+		self.ClientIDtoClient[m.ClientID] = c
+		self.ClientIDs = append(self.ClientIDs, m.ClientID)
 		sessionPresent = false
 	}
 
 	if m.Flags&Will_Flag == Will_Flag {
-		client.Will = m.Will
+		c.Will = m.Will
 		// TODO: consider QoS and Retain as broker need
 	} else {
 
 	}
 
 	if m.KeepAlive != 0 {
-		go self.RunClientTimer(client)
+		go self.RunClientTimer(c)
 	}
-	err = self.Bt.SendMessage(NewConnackMessage(sessionPresent, Accepted), addr)
-	client.IsConnecting = true
-	client.Redelivery()
+	err = c.SendMessage(NewConnackMessage(sessionPresent, Accepted))
+	c.IsConnecting = true
+	c.Redelivery()
 	return err
 }
 
-func (self *Broker) recvConnackMessage(m *ConnackMessage, addr *net.UDPAddr) (err error) {
+func (self *Broker) recvConnackMessage(m *ConnackMessage, c *Client) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Broker) recvPublishMessage(m *PublishMessage, addr *net.UDPAddr) (err error) {
-	client, ok := self.Clients[addr]
-	if !ok {
-		self.DisconnectFromBroker(client)
-		return CLIENT_NOT_EXIST
-	}
-
+func (self *Broker) recvPublishMessage(m *PublishMessage, c *Client) (err error) {
 	if m.Dup {
 		// re-delivered
 	} else {
@@ -144,7 +152,7 @@ func (self *Broker) recvPublishMessage(m *PublishMessage, addr *net.UDPAddr) (er
 		return err
 	}
 	for subscriberID, qos := range nodes[0].Subscribers {
-		subscriber, _ := self.ClientIDs[subscriberID]
+		subscriber, _ := self.ClientIDtoClient[subscriberID]
 		subscriber.Publish(m.TopicName, string(m.Payload), qos, false)
 	}
 
@@ -152,77 +160,57 @@ func (self *Broker) recvPublishMessage(m *PublishMessage, addr *net.UDPAddr) (er
 	// in any case, Dub must be 0
 	case 0:
 	case 1:
-		err = client.SendMessage(NewPubackMessage(m.PacketID))
+		err = c.SendMessage(NewPubackMessage(m.PacketID))
 	case 2:
-		err = client.SendMessage(NewPubrecMessage(m.PacketID))
+		err = c.SendMessage(NewPubrecMessage(m.PacketID))
 	}
 	return err
 }
 
-func (self *Broker) recvPubackMessage(m *PubackMessage, addr *net.UDPAddr) (err error) {
-	client, ok := self.Clients[addr]
-	if !ok {
-		return CLIENT_NOT_EXIST
-	}
+func (self *Broker) recvPubackMessage(m *PubackMessage, c *Client) (err error) {
 	// acknowledge the sent Publish packet
 	if m.PacketID > 0 {
-		err = client.AckMessage(m.PacketID)
+		err = c.AckMessage(m.PacketID)
 	}
 	return err
 }
 
-func (self *Broker) recvPubrecMessage(m *PubrecMessage, addr *net.UDPAddr) (err error) {
-	client, ok := self.Clients[addr]
-	if !ok {
-		return CLIENT_NOT_EXIST
-	}
+func (self *Broker) recvPubrecMessage(m *PubrecMessage, c *Client) (err error) {
 	// acknowledge the sent Publish packet
-	err = client.AckMessage(m.PacketID)
-	err = client.SendMessage(NewPubrelMessage(m.PacketID))
+	err = c.AckMessage(m.PacketID)
+	err = c.SendMessage(NewPubrelMessage(m.PacketID))
 	return err
 }
 
-func (self *Broker) recvPubrelMessage(m *PubrelMessage, addr *net.UDPAddr) (err error) {
-	client, ok := self.Clients[addr]
-	if !ok {
-		return CLIENT_NOT_EXIST
-	}
+func (self *Broker) recvPubrelMessage(m *PubrelMessage, c *Client) (err error) {
 	// acknowledge the sent Pubrel packet
-	err = client.AckMessage(m.PacketID)
-	err = client.SendMessage(NewPubcompMessage(m.PacketID))
+	err = c.AckMessage(m.PacketID)
+	err = c.SendMessage(NewPubcompMessage(m.PacketID))
 	return err
 }
 
-func (self *Broker) recvPubcompMessage(m *PubcompMessage, addr *net.UDPAddr) (err error) {
-	client, ok := self.Clients[addr]
-	if !ok {
-		return CLIENT_NOT_EXIST
-	}
+func (self *Broker) recvPubcompMessage(m *PubcompMessage, c *Client) (err error) {
 	// acknowledge the sent Pubrel packet
-	err = client.AckMessage(m.PacketID)
+	err = c.AckMessage(m.PacketID)
 	return err
 }
 
-func (self *Broker) recvSubscribeMessage(m *SubscribeMessage, addr *net.UDPAddr) (err error) {
+func (self *Broker) recvSubscribeMessage(m *SubscribeMessage, c *Client) (err error) {
 	// TODO: check The wild card is permitted
-	client, ok := self.Clients[addr]
-	if !ok {
-		return CLIENT_NOT_EXIST
-	}
 	returnCodes := make([]SubscribeReturnCode, 0)
 	for _, subTopic := range m.SubscribeTopics {
 		// TODO: need to validate wheter there are same topics or not
 		edges, err := self.TopicRoot.GetTopicNodes(subTopic.Topic)
 		codes := make([]SubscribeReturnCode, len(edges))
-		if err != nil || !ok {
+		if err != nil {
 			for i, _ := range codes {
 				codes[i] = SubscribeFailure
 			}
 		} else {
 			for i, edge := range edges {
-				edge.Subscribers[client.ID] = subTopic.QoS
+				edge.Subscribers[c.ID] = subTopic.QoS
 				codes[i] = SubscribeReturnCode(subTopic.QoS)
-				client.SubTopics = append(client.SubTopics,
+				c.SubTopics = append(c.SubTopics,
 					SubscribeTopic{SubscribeAck,
 						edge.FullPath,
 						uint8(subTopic.QoS),
@@ -230,7 +218,7 @@ func (self *Broker) recvSubscribeMessage(m *SubscribeMessage, addr *net.UDPAddr)
 				if len(edge.RetainMessage) > 0 {
 					// publish retain
 					// TODO: check all arguments
-					err = client.SendMessage(NewPublishMessage(false, edge.RetainQoS, true,
+					err = c.SendMessage(NewPublishMessage(false, edge.RetainQoS, true,
 						edge.FullPath, m.PacketID, []uint8(edge.RetainMessage)))
 					// TODO: error validation
 				}
@@ -239,24 +227,20 @@ func (self *Broker) recvSubscribeMessage(m *SubscribeMessage, addr *net.UDPAddr)
 		returnCodes = append(returnCodes, codes...)
 	}
 	// TODO: check whether the number of return codes are correct?
-	err = client.SendMessage(NewSubackMessage(m.PacketID, returnCodes))
+	err = c.SendMessage(NewSubackMessage(m.PacketID, returnCodes))
 	return err
 }
 
-func (self *Broker) recvSubackMessage(m *SubackMessage, addr *net.UDPAddr) (err error) {
+func (self *Broker) recvSubackMessage(m *SubackMessage, c *Client) (err error) {
 	return INVALID_MESSAGE_CAME
 }
-func (self *Broker) recvUnsubscribeMessage(m *UnsubscribeMessage, addr *net.UDPAddr) (err error) {
-	client, ok := self.Clients[addr]
-	if !ok {
-		return CLIENT_NOT_EXIST
-	}
+func (self *Broker) recvUnsubscribeMessage(m *UnsubscribeMessage, c *Client) (err error) {
 	if len(m.TopicNames) == 0 {
 		// protocol violation
 	}
 	// TODO: optimize here
 	result := []SubscribeTopic{}
-	for _, t := range client.SubTopics {
+	for _, t := range c.SubTopics {
 		del := false
 		for _, name := range m.TopicNames {
 			if string(t.Topic) == string(name) {
@@ -267,45 +251,37 @@ func (self *Broker) recvUnsubscribeMessage(m *UnsubscribeMessage, addr *net.UDPA
 			result = append(result, t)
 		}
 	}
-	client.SubTopics = result
-	err = client.SendMessage(NewUnsubackMessage(m.PacketID))
+	c.SubTopics = result
+	err = c.SendMessage(NewUnsubackMessage(m.PacketID))
 	return err
 }
-func (self *Broker) recvUnsubackMessage(m *UnsubackMessage, addr *net.UDPAddr) (err error) {
+func (self *Broker) recvUnsubackMessage(m *UnsubackMessage, c *Client) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Broker) recvPingreqMessage(m *PingreqMessage, addr *net.UDPAddr) (err error) {
+func (self *Broker) recvPingreqMessage(m *PingreqMessage, c *Client) (err error) {
 	// Pingresp
 	// TODO: calc elapsed time from previous pingreq.
 	//       and store the time to duration of Transport
-	client, ok := self.Clients[addr]
-	if !ok {
-		return CLIENT_NOT_EXIST
-	}
-	err = client.SendMessage(NewPingrespMessage())
-	if client.KeepAlive != 0 {
-		client.ResetTimer()
-		go self.RunClientTimer(client)
+	err = c.SendMessage(NewPingrespMessage())
+	if c.KeepAlive != 0 {
+		c.ResetTimer()
+		go self.RunClientTimer(c)
 	}
 	return err
 }
 
-func (self *Broker) recvPingrespMessage(m *PingrespMessage, addr *net.UDPAddr) (err error) {
+func (self *Broker) recvPingrespMessage(m *PingrespMessage, c *Client) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Broker) recvDisconnectMessage(m *DisconnectMessage, addr *net.UDPAddr) (err error) {
-	client, ok := self.Clients[addr]
-	if !ok {
-		return CLIENT_NOT_EXIST
-	}
-	self.DisconnectFromBroker(client)
+func (self *Broker) recvDisconnectMessage(m *DisconnectMessage, c *Client) (err error) {
+	self.DisconnectFromBroker(c)
 	// close the client
 	return err
 }
 
-func (self *Broker) ReadMessageFrom() (Message, *net.UDPAddr, error) {
-	return self.Bt.ReadMessageFrom()
-
+func (self *Broker) ReadMessage() (Message, error) {
+	// TODO: should be removed
+	return nil, nil
 }

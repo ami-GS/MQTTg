@@ -2,34 +2,31 @@ package MQTTg
 
 import (
 	"net"
-	"time"
 )
 
 type Transport struct {
-	conn     *net.UDPConn
-	duration time.Duration
-	//sm   *Sender
+	conn *net.TCPConn
 }
 
-func (self *Transport) SendMessage(m Message, distAddr *net.UDPAddr) error {
+func (self *Transport) SendMessage(m Message) error {
 	wire, err := m.GetWire()
 	if err != nil {
 		return err
 	}
-	_, err = self.conn.WriteToUDP(wire, distAddr)
+	_, err = self.conn.Write(wire)
 	return err
 }
 
-func (self *Transport) ReadMessageFrom() (Message, *net.UDPAddr, error) {
+func (self *Transport) ReadMessage() (Message, error) {
 	wire := make([]byte, 65535) //TODO: should be optimized
-	len, addr, err := self.conn.ReadFromUDP(wire)
+	len, err := self.conn.Read(wire)
 	if err != nil {
-		return nil, addr, err
+		return nil, err
 	}
 	m, err := ReadFrame(wire[:len])
 	if err != nil {
-		return nil, addr, err
+		return nil, err
 	}
 
-	return m, addr, nil
+	return m, nil
 }

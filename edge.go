@@ -1,63 +1,59 @@
 package MQTTg
 
-import (
-	"net"
-)
-
 type Edge interface {
-	recvConnectMessage(*ConnectMessage, *net.UDPAddr) error
-	recvConnackMessage(*ConnackMessage, *net.UDPAddr) error
-	recvPublishMessage(*PublishMessage, *net.UDPAddr) error
-	recvPubackMessage(*PubackMessage, *net.UDPAddr) error
-	recvPubrecMessage(*PubrecMessage, *net.UDPAddr) error
-	recvPubrelMessage(*PubrelMessage, *net.UDPAddr) error
-	recvPubcompMessage(*PubcompMessage, *net.UDPAddr) error
-	recvSubscribeMessage(*SubscribeMessage, *net.UDPAddr) error
-	recvSubackMessage(*SubackMessage, *net.UDPAddr) error
-	recvUnsubscribeMessage(*UnsubscribeMessage, *net.UDPAddr) error
-	recvUnsubackMessage(*UnsubackMessage, *net.UDPAddr) error
-	recvPingreqMessage(*PingreqMessage, *net.UDPAddr) error
-	recvPingrespMessage(*PingrespMessage, *net.UDPAddr) error
-	recvDisconnectMessage(*DisconnectMessage, *net.UDPAddr) error
-	ReadMessageFrom() (Message, *net.UDPAddr, error)
+	recvConnectMessage(*ConnectMessage, *Client) error
+	recvConnackMessage(*ConnackMessage, *Client) error
+	recvPublishMessage(*PublishMessage, *Client) error
+	recvPubackMessage(*PubackMessage, *Client) error
+	recvPubrecMessage(*PubrecMessage, *Client) error
+	recvPubrelMessage(*PubrelMessage, *Client) error
+	recvPubcompMessage(*PubcompMessage, *Client) error
+	recvSubscribeMessage(*SubscribeMessage, *Client) error
+	recvSubackMessage(*SubackMessage, *Client) error
+	recvUnsubscribeMessage(*UnsubscribeMessage, *Client) error
+	recvUnsubackMessage(*UnsubackMessage, *Client) error
+	recvPingreqMessage(*PingreqMessage, *Client) error
+	recvPingrespMessage(*PingrespMessage, *Client) error
+	recvDisconnectMessage(*DisconnectMessage, *Client) error
+	ReadMessage() (Message, error)
 }
 
-func ReadLoop(edge Edge) error {
+func ReadLoop(edge Edge, c *Client) error {
 	for {
-		m, addr, err := edge.ReadMessageFrom()
+		m, err := edge.ReadMessage()
 		if err != nil {
 			EmitError(err)
 			continue
 		}
 		switch m := m.(type) {
 		case *ConnectMessage:
-			err = edge.recvConnectMessage(m, addr)
+			err = edge.recvConnectMessage(m, c)
 		case *ConnackMessage:
-			err = edge.recvConnackMessage(m, addr)
+			err = edge.recvConnackMessage(m, c)
 		case *PublishMessage:
-			err = edge.recvPublishMessage(m, addr)
+			err = edge.recvPublishMessage(m, c)
 		case *PubackMessage:
-			err = edge.recvPubackMessage(m, addr)
+			err = edge.recvPubackMessage(m, c)
 		case *PubrecMessage:
-			err = edge.recvPubrecMessage(m, addr)
+			err = edge.recvPubrecMessage(m, c)
 		case *PubrelMessage:
-			err = edge.recvPubrelMessage(m, addr)
+			err = edge.recvPubrelMessage(m, c)
 		case *PubcompMessage:
-			err = edge.recvPubcompMessage(m, addr)
+			err = edge.recvPubcompMessage(m, c)
 		case *SubscribeMessage:
-			err = edge.recvSubscribeMessage(m, addr)
+			err = edge.recvSubscribeMessage(m, c)
 		case *SubackMessage:
-			err = edge.recvSubackMessage(m, addr)
+			err = edge.recvSubackMessage(m, c)
 		case *UnsubscribeMessage:
-			err = edge.recvUnsubscribeMessage(m, addr)
+			err = edge.recvUnsubscribeMessage(m, c)
 		case *UnsubackMessage:
-			err = edge.recvUnsubackMessage(m, addr)
+			err = edge.recvUnsubackMessage(m, c)
 		case *PingreqMessage:
-			err = edge.recvPingreqMessage(m, addr)
+			err = edge.recvPingreqMessage(m, c)
 		case *PingrespMessage:
-			err = edge.recvPingrespMessage(m, addr)
+			err = edge.recvPingrespMessage(m, c)
 		case *DisconnectMessage:
-			err = edge.recvDisconnectMessage(m, addr)
+			err = edge.recvDisconnectMessage(m, c)
 
 		}
 		EmitError(err)

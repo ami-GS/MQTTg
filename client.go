@@ -21,34 +21,40 @@ func NewUser(name, pass string) *User {
 }
 
 type Client struct {
-	Ct           *Transport
-	IsConnecting bool
-	//Addr         *net.UDPAddr
-	RemoteAddr   *net.UDPAddr
-	ID           string
-	User         *User
-	KeepAlive    uint16
-	Will         *Will
-	SubTopics    []SubscribeTopic
-	PingBegin    time.Time
-	PacketIDMap  map[uint16]Message
-	CleanSession bool
+	Ct             *Transport
+	IsConnecting   bool
+	RemoteAddr     *net.TCPAddr
+	ID             string
+	User           *User
+	KeepAlive      uint16
+	Will           *Will
+	SubTopics      []SubscribeTopic
+	PingBegin      time.Time
+	PacketIDMap    map[uint16]Message
+	CleanSession   bool
+	KeepAliveTimer *time.Timer
+	Duration       time.Duration
 }
 
-func NewClient(t *Transport, addr *net.UDPAddr, id string, user *User, keepAlive uint16, will *Will) *Client {
+func NewClient(t *Transport, id string, user *User, keepAlive uint16, will *Will) *Client {
 	// TODO: when id is empty, then apply random
 	return &Client{
-		Ct:           t,
-		IsConnecting: false,
-		RemoteAddr:   addr,
-		ID:           id,
-		User:         user,
-		KeepAlive:    keepAlive,
-		Will:         will,
-		SubTopics:    make([]SubscribeTopic, 0),
-		PacketIDMap:  make(map[uint16]Message, 0),
-		CleanSession: false,
+		Ct:             t,
+		IsConnecting:   false,
+		ID:             id,
+		User:           user,
+		KeepAlive:      keepAlive,
+		Will:           will,
+		SubTopics:      make([]SubscribeTopic, 0),
+		PacketIDMap:    make(map[uint16]Message, 0),
+		CleanSession:   false,
+		KeepAliveTimer: nil,
+		Duration:       0,
 	}
+}
+
+func (self *Client) ResetTimer() {
+	self.KeepAliveTimer.Reset(self.Duration)
 }
 
 func (self *Client) SendMessage(m Message) error {
@@ -61,7 +67,7 @@ func (self *Client) SendMessage(m Message) error {
 		return PACKET_ID_IS_USED_ALREADY
 	}
 
-	err := self.Ct.SendMessage(m, self.RemoteAddr)
+	err := self.Ct.SendMessage(m)
 	if err == nil {
 		switch m.(type) {
 		case *PublishMessage:
@@ -108,20 +114,21 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	if err != nil {
 		return err
 	}
-	udpaddr := &net.UDPAddr{
+	// TODO: this should be done by ResolveTCPAddr
+	tcpaddr := &net.TCPAddr{
 		IP:   net.IP(pair[0]),
 		Port: port,
 		Zone: "", // TODO: check
 	}
 	// TODO: local address might be input
-	conn, err := net.DialUDP("udp4", nil, udpaddr)
+	conn, err := net.DialTCP("tcp4", nil, tcpaddr)
 	if err != nil {
 		return err
 	}
-	self.RemoteAddr = udpaddr
+	self.RemoteAddr = tcpaddr
 	self.Ct.conn = conn
 	self.CleanSession = cleanSession
-	go ReadLoop(self)
+	go ReadLoop(self, nil)
 	err = self.SendMessage(NewConnectMessage(self.KeepAlive,
 		self.ID, cleanSession, self.Will, self.User))
 	return err
@@ -217,17 +224,17 @@ func (self *Client) Redelivery() (err error) {
 	return err
 }
 
-func (self *Client) recvConnectMessage(m *ConnectMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvConnectMessage(m *ConnectMessage, c *Client) (err error) {
 	return INVALID_MESSAGE_CAME
 }
-func (self *Client) recvConnackMessage(m *ConnackMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvConnackMessage(m *ConnackMessage, c *Client) (err error) {
 	self.AckMessage(m.PacketID)
 	self.IsConnecting = true
 	self.keepAlive()
 	self.Redelivery()
 	return err
 }
-func (self *Client) recvPublishMessage(m *PublishMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvPublishMessage(m *PublishMessage, c *Client) (err error) {
 	if m.Dup {
 		// re-delivered
 	} else if m.Dup {
@@ -251,7 +258,7 @@ func (self *Client) recvPublishMessage(m *PublishMessage, addr *net.UDPAddr) (er
 	return err
 }
 
-func (self *Client) recvPubackMessage(m *PubackMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvPubackMessage(m *PubackMessage, c *Client) (err error) {
 	// acknowledge the sent Publish packet
 	if m.PacketID > 0 {
 		err = self.AckMessage(m.PacketID)
@@ -259,31 +266,31 @@ func (self *Client) recvPubackMessage(m *PubackMessage, addr *net.UDPAddr) (err 
 	return err
 }
 
-func (self *Client) recvPubrecMessage(m *PubrecMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvPubrecMessage(m *PubrecMessage, c *Client) (err error) {
 	// acknowledge the sent Publish packet
 	err = self.AckMessage(m.PacketID)
 	err = self.SendMessage(NewPubrelMessage(m.PacketID))
 	return err
 }
 
-func (self *Client) recvPubrelMessage(m *PubrelMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvPubrelMessage(m *PubrelMessage, c *Client) (err error) {
 	// acknowledge the sent Pubrel packet
 	err = self.AckMessage(m.PacketID)
 	err = self.SendMessage(NewPubcompMessage(m.PacketID))
 	return err
 }
 
-func (self *Client) recvPubcompMessage(m *PubcompMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvPubcompMessage(m *PubcompMessage, c *Client) (err error) {
 	// acknowledge the sent Pubrel packet
 	err = self.AckMessage(m.PacketID)
 	return err
 }
 
-func (self *Client) recvSubscribeMessage(m *SubscribeMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvSubscribeMessage(m *SubscribeMessage, c *Client) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Client) recvSubackMessage(m *SubackMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvSubackMessage(m *SubackMessage, c *Client) (err error) {
 	// acknowledge the sent subscribe packet
 	self.AckMessage(m.PacketID)
 	for i, code := range m.ReturnCodes {
@@ -291,22 +298,23 @@ func (self *Client) recvSubackMessage(m *SubackMessage, addr *net.UDPAddr) (err 
 	}
 	return err
 }
-func (self *Client) recvUnsubscribeMessage(m *UnsubscribeMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvUnsubscribeMessage(m *UnsubscribeMessage, c *Client) (err error) {
 	return INVALID_MESSAGE_CAME
 }
-func (self *Client) recvUnsubackMessage(m *UnsubackMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvUnsubackMessage(m *UnsubackMessage, c *Client) (err error) {
 	// acknowledged the sent unsubscribe packet
 	err = self.AckMessage(m.PacketID)
 	return err
 }
 
-func (self *Client) recvPingreqMessage(m *PingreqMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvPingreqMessage(m *PingreqMessage, c *Client) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Client) recvPingrespMessage(m *PingrespMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvPingrespMessage(m *PingrespMessage, c *Client) (err error) {
 	elapsed := time.Since(self.PingBegin)
-	self.Ct.duration = elapsed
+	// TODO: suspicious
+	self.Duration = elapsed
 	if elapsed.Seconds() >= float64(self.KeepAlive) {
 		// TODO: this must be 'reasonable amount of time'
 		err = self.SendMessage(NewDisconnectMessage())
@@ -316,10 +324,10 @@ func (self *Client) recvPingrespMessage(m *PingrespMessage, addr *net.UDPAddr) (
 	return err
 }
 
-func (self *Client) recvDisconnectMessage(m *DisconnectMessage, addr *net.UDPAddr) (err error) {
+func (self *Client) recvDisconnectMessage(m *DisconnectMessage, c *Client) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Client) ReadMessageFrom() (Message, *net.UDPAddr, error) {
-	return self.Ct.ReadMessageFrom()
+func (self *Client) ReadMessage() (Message, error) {
+	return self.Ct.ReadMessage()
 }
