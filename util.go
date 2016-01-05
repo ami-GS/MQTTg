@@ -3,6 +3,7 @@ package MQTTg
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
 )
 
 func UTF8_encode(dst []uint8, s string) int {
@@ -46,6 +47,18 @@ func RemainDecode(wire []byte) (uint32, int, error) {
 		}
 	}
 	return out, i + 1, nil
+}
+
+func GetLocalAddr() (*net.TCPAddr, error) {
+	addrs, err := net.InterfaceAddrs()
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return net.ResolveTCPAddr("tcp4", ipnet.IP.String())
+			}
+		}
+	}
+	return nil, err
 }
 
 type MQTT_ERROR uint8 // for 256 errors

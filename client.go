@@ -3,7 +3,6 @@ package MQTTg
 import (
 	"math/rand"
 	"net"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -23,7 +22,6 @@ func NewUser(name, pass string) *User {
 type Client struct {
 	Ct             *Transport
 	IsConnecting   bool
-	RemoteAddr     *net.TCPAddr
 	ID             string
 	User           *User
 	KeepAlive      uint16
@@ -106,26 +104,19 @@ func (self *Client) getUsablePacketID() (uint16, error) {
 }
 
 func (self *Client) Connect(addPair string, cleanSession bool) error {
-	pair := strings.Split(addPair, ":")
-	if len(pair) != 2 {
-		return nil // TODO: apply error
-	}
-	port, err := strconv.Atoi(pair[1])
+	rAddr, err := net.ResolveTCPAddr("tcp4", addPair)
 	if err != nil {
 		return err
 	}
-	// TODO: this should be done by ResolveTCPAddr
-	tcpaddr := &net.TCPAddr{
-		IP:   net.IP(pair[0]),
-		Port: port,
-		Zone: "", // TODO: check
-	}
-	// TODO: local address might be input
-	conn, err := net.DialTCP("tcp4", nil, tcpaddr)
+	lAddr, err := GetLocalAddr()
 	if err != nil {
 		return err
 	}
-	self.RemoteAddr = tcpaddr
+
+	conn, err := net.DialTCP("tcp4", lAddr, rAddr)
+	if err != nil {
+		return err
+	}
 	self.Ct.conn = conn
 	self.CleanSession = cleanSession
 	go ReadLoop(self, nil)

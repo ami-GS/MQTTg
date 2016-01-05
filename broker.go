@@ -16,7 +16,12 @@ type Broker struct {
 }
 
 func (self *Broker) Start() error {
-	listener, err := net.ListenTCP("tcp4", self.MyAddr)
+	addr, err := GetLocalAddr()
+	addr.Port = 8883 // MQTT default, TODO: set by config file
+	if err != nil {
+		return err
+	}
+	listener, err := net.ListenTCP("tcp4", addr)
 	if err != nil {
 		// TODO: use channel to return error
 		return err
