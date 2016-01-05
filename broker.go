@@ -9,10 +9,8 @@ import (
 type Broker struct {
 	MyAddr *net.TCPAddr
 	// TODO: check whether not good to use addr as key
-	Clients          map[*net.TCPAddr]*Client // map[addr]*ClientInfo
-	ClientIDtoClient map[string]*Client
-	ClientIDs        []string
-	TopicRoot        *TopicNode
+	Clients   map[string]*Client //map[clientID]*CLient
+	TopicRoot *TopicNode
 }
 
 func (self *Broker) Start() error {
@@ -43,15 +41,7 @@ func (self *Broker) DisconnectFromBroker(client *Client) {
 	client.IsConnecting = false
 	client.KeepAliveTimer.Stop()
 	if client.CleanSession {
-		newIDs := make([]string, len(self.ClientIDs)-1)
-		j := 0
-		for i := 0; i < len(self.ClientIDs); i++ {
-			if self.ClientIDs[i] != client.ID {
-				newIDs[j] = self.ClientIDs[i]
-				j++
-			}
-		}
-		self.ClientIDs = newIDs
+		delete(self.Clients, client.ID)
 	}
 
 }
@@ -62,17 +52,8 @@ func (self *Broker) RunClientTimer(client *Client) {
 	// TODO: logging?
 }
 
-func (self *Broker) ExistsClientID(id string) bool {
-	for _, ID := range self.ClientIDs {
-		if ID == id {
-			return true
-		}
-	}
-	return false
-}
-
 func (self *Broker) ApplyDummyClientID() string {
-	return "DummyClientID:" + strconv.Itoa(len(self.ClientIDs)+1)
+	return "DummyClientID:" + strconv.Itoa(len(self.Clients)+1)
 }
 
 func (self *Broker) recvConnectMessage(m *ConnectMessage, c *Client) (err error) {
@@ -87,8 +68,7 @@ func (self *Broker) recvConnectMessage(m *ConnectMessage, c *Client) (err error)
 		return INVALID_PROTOCOL_LEVEL
 	}
 
-	c, ok := self.ClientIDtoClient[m.ClientID]
-	//ok := self.ExistsClientID(m.ClientID)
+	c, ok := self.Clients[m.ClientID]
 	if ok {
 		// TODO: this might cause problem
 		err = c.SendMessage(NewConnackMessage(false, IdentifierRejected))
@@ -109,8 +89,7 @@ func (self *Broker) recvConnectMessage(m *ConnectMessage, c *Client) (err error)
 		c.KeepAlive = m.KeepAlive
 		c.Will = m.Will
 		c.CleanSession = cleanSession
-		self.ClientIDtoClient[m.ClientID] = c
-		self.ClientIDs = append(self.ClientIDs, m.ClientID)
+		self.Clients[m.ClientID] = c
 		sessionPresent = false
 	}
 
@@ -157,7 +136,7 @@ func (self *Broker) recvPublishMessage(m *PublishMessage, c *Client) (err error)
 		return err
 	}
 	for subscriberID, qos := range nodes[0].Subscribers {
-		subscriber, _ := self.ClientIDtoClient[subscriberID]
+		subscriber, _ := self.Clients[subscriberID]
 		subscriber.Publish(m.TopicName, string(m.Payload), qos, false)
 	}
 
