@@ -18,9 +18,16 @@ type Edge interface {
 	ReadMessage() (Message, error)
 }
 
-func ReadLoop(edge Edge, c *Client) error {
+func ReadLoop(edge Edge, c *Client) (err error) {
+	var m Message
 	for {
-		m, err := edge.ReadMessage()
+		EmitError(err)
+		// TODO: not cool
+		if c == nil {
+			m, err = edge.ReadMessage()
+		} else {
+			m, err = c.ReadMessage()
+		}
 		if err != nil {
 			EmitError(err)
 			continue
@@ -56,6 +63,5 @@ func ReadLoop(edge Edge, c *Client) error {
 			err = edge.recvDisconnectMessage(m, c)
 
 		}
-		EmitError(err)
 	}
 }
