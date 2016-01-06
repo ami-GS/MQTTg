@@ -32,23 +32,23 @@ func (self *Broker) Start() error {
 			continue
 		}
 		client := NewClient(&Transport{conn}, "", nil, 0, nil)
-		go ReadLoop(self, client)
+		go ReadLoop(&BrokerSideClient{client, self})
 	}
 }
 
-func (self *Broker) DisconnectFromBroker(client *Client) {
-	client.Will = nil
-	client.IsConnecting = false
-	client.KeepAliveTimer.Stop()
-	if client.CleanSession {
-		delete(self.Clients, client.ID)
+func (self *BrokerSideClient) DisconnectFromBroker() {
+	self.Will = nil
+	self.IsConnecting = false
+	self.KeepAliveTimer.Stop()
+	if self.CleanSession {
+		delete(self.Clients, self.ID)
 	}
 
 }
 
-func (self *Broker) RunClientTimer(client *Client) {
-	<-client.KeepAliveTimer.C
-	self.DisconnectFromBroker(client)
+func (self *BrokerSideClient) RunClientTimer() {
+	<-self.KeepAliveTimer.C
+	self.DisconnectFromBroker()
 	// TODO: logging?
 }
 
@@ -56,7 +56,12 @@ func (self *Broker) ApplyDummyClientID() string {
 	return "DummyClientID:" + strconv.Itoa(len(self.Clients)+1)
 }
 
-func (self *Broker) recvConnectMessage(m *ConnectMessage, c *Client) (err error) {
+type BrokerSideClient struct {
+	*Client
+	*Broker
+}
+
+func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) {
 	if m.Protocol.Name != MQTT_3_1_1.Name {
 		// server MAY disconnect
 		return INVALID_PROTOCOL_NAME
@@ -64,7 +69,7 @@ func (self *Broker) recvConnectMessage(m *ConnectMessage, c *Client) (err error)
 
 	if m.Protocol.Level != MQTT_3_1_1.Level {
 		// CHECK: Is false correct?
-		err = c.SendMessage(NewConnackMessage(false, UnacceptableProtocolVersion))
+		err = self.SendMessage(NewConnackMessage(false, UnacceptableProtocolVersion))
 		return INVALID_PROTOCOL_LEVEL
 	}
 
@@ -101,19 +106,20 @@ func (self *Broker) recvConnectMessage(m *ConnectMessage, c *Client) (err error)
 	}
 
 	if m.KeepAlive != 0 {
-		go self.RunClientTimer(c)
+		go self.RunClientTimer()
 	}
 	err = c.SendMessage(NewConnackMessage(sessionPresent, Accepted))
 	c.IsConnecting = true
 	c.Redelivery()
+	self.Client = c
 	return err
 }
 
-func (self *Broker) recvConnackMessage(m *ConnackMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvConnackMessage(m *ConnackMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Broker) recvPublishMessage(m *PublishMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) {
 	if m.Dup {
 		// re-delivered
 	} else {
@@ -144,42 +150,42 @@ func (self *Broker) recvPublishMessage(m *PublishMessage, c *Client) (err error)
 	// in any case, Dub must be 0
 	case 0:
 	case 1:
-		err = c.SendMessage(NewPubackMessage(m.PacketID))
+		err = self.SendMessage(NewPubackMessage(m.PacketID))
 	case 2:
-		err = c.SendMessage(NewPubrecMessage(m.PacketID))
+		err = self.SendMessage(NewPubrecMessage(m.PacketID))
 	}
 	return err
 }
 
-func (self *Broker) recvPubackMessage(m *PubackMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvPubackMessage(m *PubackMessage) (err error) {
 	// acknowledge the sent Publish packet
 	if m.PacketID > 0 {
-		err = c.AckMessage(m.PacketID)
+		err = self.AckMessage(m.PacketID)
 	}
 	return err
 }
 
-func (self *Broker) recvPubrecMessage(m *PubrecMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvPubrecMessage(m *PubrecMessage) (err error) {
 	// acknowledge the sent Publish packet
-	err = c.AckMessage(m.PacketID)
-	err = c.SendMessage(NewPubrelMessage(m.PacketID))
+	err = self.AckMessage(m.PacketID)
+	err = self.SendMessage(NewPubrelMessage(m.PacketID))
 	return err
 }
 
-func (self *Broker) recvPubrelMessage(m *PubrelMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvPubrelMessage(m *PubrelMessage) (err error) {
 	// acknowledge the sent Pubrel packet
-	err = c.AckMessage(m.PacketID)
-	err = c.SendMessage(NewPubcompMessage(m.PacketID))
+	err = self.AckMessage(m.PacketID)
+	err = self.SendMessage(NewPubcompMessage(m.PacketID))
 	return err
 }
 
-func (self *Broker) recvPubcompMessage(m *PubcompMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvPubcompMessage(m *PubcompMessage) (err error) {
 	// acknowledge the sent Pubrel packet
-	err = c.AckMessage(m.PacketID)
+	err = self.AckMessage(m.PacketID)
 	return err
 }
 
-func (self *Broker) recvSubscribeMessage(m *SubscribeMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err error) {
 	// TODO: check The wild card is permitted
 	returnCodes := make([]SubscribeReturnCode, 0)
 	for _, subTopic := range m.SubscribeTopics {
@@ -192,9 +198,9 @@ func (self *Broker) recvSubscribeMessage(m *SubscribeMessage, c *Client) (err er
 			}
 		} else {
 			for i, edge := range edges {
-				edge.Subscribers[c.ID] = subTopic.QoS
+				edge.Subscribers[self.ID] = subTopic.QoS
 				codes[i] = SubscribeReturnCode(subTopic.QoS)
-				c.SubTopics = append(c.SubTopics,
+				self.SubTopics = append(self.SubTopics,
 					SubscribeTopic{SubscribeAck,
 						edge.FullPath,
 						uint8(subTopic.QoS),
@@ -202,7 +208,7 @@ func (self *Broker) recvSubscribeMessage(m *SubscribeMessage, c *Client) (err er
 				if len(edge.RetainMessage) > 0 {
 					// publish retain
 					// TODO: check all arguments
-					err = c.SendMessage(NewPublishMessage(false, edge.RetainQoS, true,
+					err = self.SendMessage(NewPublishMessage(false, edge.RetainQoS, true,
 						edge.FullPath, m.PacketID, []uint8(edge.RetainMessage)))
 					// TODO: error validation
 				}
@@ -211,20 +217,20 @@ func (self *Broker) recvSubscribeMessage(m *SubscribeMessage, c *Client) (err er
 		returnCodes = append(returnCodes, codes...)
 	}
 	// TODO: check whether the number of return codes are correct?
-	err = c.SendMessage(NewSubackMessage(m.PacketID, returnCodes))
+	err = self.SendMessage(NewSubackMessage(m.PacketID, returnCodes))
 	return err
 }
 
-func (self *Broker) recvSubackMessage(m *SubackMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvSubackMessage(m *SubackMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
-func (self *Broker) recvUnsubscribeMessage(m *UnsubscribeMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvUnsubscribeMessage(m *UnsubscribeMessage) (err error) {
 	if len(m.TopicNames) == 0 {
 		// protocol violation
 	}
 	// TODO: optimize here
 	result := []SubscribeTopic{}
-	for _, t := range c.SubTopics {
+	for _, t := range self.SubTopics {
 		del := false
 		for _, name := range m.TopicNames {
 			if string(t.Topic) == string(name) {
@@ -235,37 +241,37 @@ func (self *Broker) recvUnsubscribeMessage(m *UnsubscribeMessage, c *Client) (er
 			result = append(result, t)
 		}
 	}
-	c.SubTopics = result
-	err = c.SendMessage(NewUnsubackMessage(m.PacketID))
+	self.SubTopics = result
+	err = self.SendMessage(NewUnsubackMessage(m.PacketID))
 	return err
 }
-func (self *Broker) recvUnsubackMessage(m *UnsubackMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvUnsubackMessage(m *UnsubackMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Broker) recvPingreqMessage(m *PingreqMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvPingreqMessage(m *PingreqMessage) (err error) {
 	// Pingresp
 	// TODO: calc elapsed time from previous pingreq.
 	//       and store the time to duration of Transport
-	err = c.SendMessage(NewPingrespMessage())
-	if c.KeepAlive != 0 {
-		c.ResetTimer()
-		go self.RunClientTimer(c)
+	err = self.SendMessage(NewPingrespMessage())
+	if self.KeepAlive != 0 {
+		self.ResetTimer()
+		go self.RunClientTimer()
 	}
 	return err
 }
 
-func (self *Broker) recvPingrespMessage(m *PingrespMessage, c *Client) (err error) {
+func (self *BrokerSideClient) recvPingrespMessage(m *PingrespMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Broker) recvDisconnectMessage(m *DisconnectMessage, c *Client) (err error) {
-	self.DisconnectFromBroker(c)
+func (self *BrokerSideClient) recvDisconnectMessage(m *DisconnectMessage) (err error) {
+	self.DisconnectFromBroker()
 	// close the client
 	return err
 }
 
-func (self *Broker) ReadMessage() (Message, error) {
+func (self *BrokerSideClient) ReadMessage() (Message, error) {
 	// TODO: should be removed
-	return nil, nil
+	return self.Ct.ReadMessage()
 }

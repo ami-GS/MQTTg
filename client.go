@@ -119,7 +119,7 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	}
 	self.Ct.conn = conn
 	self.CleanSession = cleanSession
-	go ReadLoop(self, nil)
+	go ReadLoop(self)
 	err = self.SendMessage(NewConnectMessage(self.KeepAlive,
 		self.ID, cleanSession, self.Will, self.User))
 	return err
@@ -215,17 +215,17 @@ func (self *Client) Redelivery() (err error) {
 	return err
 }
 
-func (self *Client) recvConnectMessage(m *ConnectMessage, c *Client) (err error) {
+func (self *Client) recvConnectMessage(m *ConnectMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
-func (self *Client) recvConnackMessage(m *ConnackMessage, c *Client) (err error) {
+func (self *Client) recvConnackMessage(m *ConnackMessage) (err error) {
 	self.AckMessage(m.PacketID)
 	self.IsConnecting = true
 	self.keepAlive()
 	self.Redelivery()
 	return err
 }
-func (self *Client) recvPublishMessage(m *PublishMessage, c *Client) (err error) {
+func (self *Client) recvPublishMessage(m *PublishMessage) (err error) {
 	if m.Dup {
 		// re-delivered
 	} else if m.Dup {
@@ -249,7 +249,7 @@ func (self *Client) recvPublishMessage(m *PublishMessage, c *Client) (err error)
 	return err
 }
 
-func (self *Client) recvPubackMessage(m *PubackMessage, c *Client) (err error) {
+func (self *Client) recvPubackMessage(m *PubackMessage) (err error) {
 	// acknowledge the sent Publish packet
 	if m.PacketID > 0 {
 		err = self.AckMessage(m.PacketID)
@@ -257,31 +257,31 @@ func (self *Client) recvPubackMessage(m *PubackMessage, c *Client) (err error) {
 	return err
 }
 
-func (self *Client) recvPubrecMessage(m *PubrecMessage, c *Client) (err error) {
+func (self *Client) recvPubrecMessage(m *PubrecMessage) (err error) {
 	// acknowledge the sent Publish packet
 	err = self.AckMessage(m.PacketID)
 	err = self.SendMessage(NewPubrelMessage(m.PacketID))
 	return err
 }
 
-func (self *Client) recvPubrelMessage(m *PubrelMessage, c *Client) (err error) {
+func (self *Client) recvPubrelMessage(m *PubrelMessage) (err error) {
 	// acknowledge the sent Pubrel packet
 	err = self.AckMessage(m.PacketID)
 	err = self.SendMessage(NewPubcompMessage(m.PacketID))
 	return err
 }
 
-func (self *Client) recvPubcompMessage(m *PubcompMessage, c *Client) (err error) {
+func (self *Client) recvPubcompMessage(m *PubcompMessage) (err error) {
 	// acknowledge the sent Pubrel packet
 	err = self.AckMessage(m.PacketID)
 	return err
 }
 
-func (self *Client) recvSubscribeMessage(m *SubscribeMessage, c *Client) (err error) {
+func (self *Client) recvSubscribeMessage(m *SubscribeMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Client) recvSubackMessage(m *SubackMessage, c *Client) (err error) {
+func (self *Client) recvSubackMessage(m *SubackMessage) (err error) {
 	// acknowledge the sent subscribe packet
 	self.AckMessage(m.PacketID)
 	for i, code := range m.ReturnCodes {
@@ -289,20 +289,20 @@ func (self *Client) recvSubackMessage(m *SubackMessage, c *Client) (err error) {
 	}
 	return err
 }
-func (self *Client) recvUnsubscribeMessage(m *UnsubscribeMessage, c *Client) (err error) {
+func (self *Client) recvUnsubscribeMessage(m *UnsubscribeMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
-func (self *Client) recvUnsubackMessage(m *UnsubackMessage, c *Client) (err error) {
+func (self *Client) recvUnsubackMessage(m *UnsubackMessage) (err error) {
 	// acknowledged the sent unsubscribe packet
 	err = self.AckMessage(m.PacketID)
 	return err
 }
 
-func (self *Client) recvPingreqMessage(m *PingreqMessage, c *Client) (err error) {
+func (self *Client) recvPingreqMessage(m *PingreqMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Client) recvPingrespMessage(m *PingrespMessage, c *Client) (err error) {
+func (self *Client) recvPingrespMessage(m *PingrespMessage) (err error) {
 	elapsed := time.Since(self.PingBegin)
 	// TODO: suspicious
 	self.Duration = elapsed
@@ -315,7 +315,7 @@ func (self *Client) recvPingrespMessage(m *PingrespMessage, c *Client) (err erro
 	return err
 }
 
-func (self *Client) recvDisconnectMessage(m *DisconnectMessage, c *Client) (err error) {
+func (self *Client) recvDisconnectMessage(m *DisconnectMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
