@@ -54,7 +54,8 @@ func GetLocalAddr() (*net.TCPAddr, error) {
 	for _, a := range addrs {
 		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
-				return net.ResolveTCPAddr("tcp4", ipnet.IP.String())
+				// MQTT default, TODO: set by config file
+				return net.ResolveTCPAddr("tcp4", ipnet.IP.String()+":8883")
 			}
 		}
 	}
