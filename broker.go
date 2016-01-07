@@ -73,7 +73,8 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		return INVALID_PROTOCOL_LEVEL
 	}
 
-	c, ok := self.Clients[m.ClientID]
+	_, ok := self.Clients[m.ClientID]
+	c := self.Client
 	if ok {
 		// TODO: this might cause problem
 		err = c.SendMessage(NewConnackMessage(false, IdentifierRejected))
@@ -111,7 +112,6 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 	err = c.SendMessage(NewConnackMessage(sessionPresent, Accepted))
 	c.IsConnecting = true
 	c.Redelivery()
-	self.Client = c
 	return err
 }
 
