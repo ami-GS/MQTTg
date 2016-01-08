@@ -34,10 +34,9 @@ type Client struct {
 	Duration       time.Duration
 }
 
-func NewClient(t *Transport, id string, user *User, keepAlive uint16, will *Will) *Client {
+func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
 	// TODO: when id is empty, then apply random
 	return &Client{
-		Ct:             t,
 		IsConnecting:   false,
 		ID:             id,
 		User:           user,
@@ -117,7 +116,7 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	if err != nil {
 		return err
 	}
-	self.Ct.conn = conn
+	self.Ct = &Transport{conn}
 	self.CleanSession = cleanSession
 	go ReadLoop(self)
 	err = self.SendMessage(NewConnectMessage(self.KeepAlive,

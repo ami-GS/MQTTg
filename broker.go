@@ -31,7 +31,8 @@ func (self *Broker) Start() error {
 			EmitError(err)
 			continue
 		}
-		client := NewClient(&Transport{conn}, "", nil, 0, nil)
+		client := NewClient("", nil, 0, nil)
+		client.Ct = &Transport{conn}
 		go ReadLoop(&BrokerSideClient{client, self})
 	}
 }
@@ -95,6 +96,7 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		c.KeepAlive = m.KeepAlive
 		c.Will = m.Will
 		c.CleanSession = cleanSession
+		c.KeepAliveTimer = time.NewTimer(c.Duration)
 		self.Clients[m.ClientID] = c
 		sessionPresent = false
 	}
@@ -109,8 +111,8 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 	if m.KeepAlive != 0 {
 		go self.RunClientTimer()
 	}
-	err = c.SendMessage(NewConnackMessage(sessionPresent, Accepted))
 	c.IsConnecting = true
+	err = c.SendMessage(NewConnackMessage(sessionPresent, Accepted))
 	c.Redelivery()
 	return err
 }
