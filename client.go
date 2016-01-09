@@ -119,7 +119,8 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	self.Ct = &Transport{conn}
 	self.CleanSession = cleanSession
 	go ReadLoop(self)
-	err = self.SendMessage(NewConnectMessage(self.KeepAlive,
+	// below can avoid first IsConnecting validation
+	err = self.Ct.SendMessage(NewConnectMessage(self.KeepAlive,
 		self.ID, cleanSession, self.Will, self.User))
 	return err
 }
