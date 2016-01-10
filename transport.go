@@ -9,12 +9,12 @@ type Transport struct {
 }
 
 func (self *Transport) SendMessage(m Message) error {
-	wire, err := m.GetWire()
+	wire := m.GetWire()
+	_, err = self.conn.Write(wire)
 	if err != nil {
 		return err
 	}
-	_, err = self.conn.Write(wire)
-	return err
+	return nil
 }
 
 func (self *Transport) ReadMessage() (Message, error) {
