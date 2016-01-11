@@ -10,7 +10,7 @@ type Transport struct {
 
 func (self *Transport) SendMessage(m Message) error {
 	wire := m.GetWire()
-	_, err = self.conn.Write(wire)
+	_, err := self.conn.Write(wire)
 	if err != nil {
 		return err
 	}
