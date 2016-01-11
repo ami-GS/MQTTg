@@ -29,58 +29,48 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 	// this topic may have wildcard +*
 	parts := strings.Split(topic, "/")
 	nxt := self
-	exist := false
+	ok := false
 	currentPath := ""
 	for i, part := range parts {
 		bef := nxt
+		currentPath += part
 		if i != len(parts)-1 {
-			currentPath += part + "/"
+			currentPath += "/"
 		}
-
-		if part == "+" {
-			if i == len(parts)-1 {
-				// e.g.) A/B/+
-				for _, node := range bef.Nodes {
-					out = append(out, node)
+		switch part {
+		case "+":
+			// e.g.) A/+/C/D
+			for key, _ := range bef.Nodes {
+				if strings.HasPrefix(key, "$") {
+					continue
 				}
-			} else {
-				// e.g.) A/+/C/D
-				// TODO: optimize here
-				for key, node := range bef.Nodes {
-					if strings.HasPrefix(key, "$") {
-						continue
-					}
-					tmp, err := node.GetTopicNodes(strings.Join(parts[i+1:], "/"))
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, tmp...)
+				tmp, err := self.GetTopicNodes(strings.Replace(topic, "+", key, 1))
+				if err != nil {
+					return nil, err
 				}
-				return out, nil
+				out = append(out, tmp...)
 			}
-		} else if part == "#" {
+			return out, nil
+		case "#":
 			if i != len(parts)-1 {
 				return nil, MULTI_LEVEL_WILDCARD_MUST_BE_ON_TAIL
 			}
-			out = append(out, self.GetNodesByNumberSign()...)
-		} else {
+			out = append(out, bef.GetNodesByNumberSign()...)
+		default:
 			if strings.HasSuffix(part, "#") && strings.HasSuffix(part, "+") {
 				return nil, WILDCARD_MUST_NOT_BE_ADJACENT_TO_NAME
 			}
-			nxt, exist = bef.Nodes[part]
-			if !exist {
-				// TODO: this has bug through after case 'A/+/C/D'
+			nxt, ok = bef.Nodes[part]
+			if !ok {
 				bef.ApplyNewTopic(part, currentPath)
 				nxt, _ = bef.Nodes[part]
 			}
-			if i != len(parts)-1 {
+			if len(parts)-1 == i {
 				out = append(out, nxt)
 			}
-
 		}
 	}
 	return out, nil
-
 }
 
 func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) ([]*TopicNode, []SubscribeReturnCode, error) {
