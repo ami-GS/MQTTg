@@ -133,4 +133,14 @@ func (self *TopicNode) ApplyNewTopic(topic, fullPath string) error {
 		Subscribers:   make(map[string]uint8),
 	}
 	return nil
+
+func (self *TopicNode) DumpTree() (str string) {
+	if len(self.Nodes) == 0 {
+		return self.FullPath + "\n"
+	}
+	for _, v := range self.Nodes {
+		str += v.DumpTree()
+	}
+	return str
+
 }
