@@ -124,7 +124,7 @@ func (self *TopicNode) ApplyRetain(topic string, qos uint8, retain string) error
 	return nil
 }
 
-func (self *TopicNode) ApplyNewTopic(topic, fullPath string) error {
+func (self *TopicNode) ApplyNewTopic(topic, fullPath string) {
 	self.Nodes[topic] = &TopicNode{
 		Nodes:         make(map[string]*TopicNode),
 		FullPath:      fullPath,
@@ -132,7 +132,7 @@ func (self *TopicNode) ApplyNewTopic(topic, fullPath string) error {
 		RetainQoS:     0,
 		Subscribers:   make(map[string]uint8),
 	}
-	return nil
+}
 
 func (self *TopicNode) DumpTree() (str string) {
 	if len(self.Nodes) == 0 {
