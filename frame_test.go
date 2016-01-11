@@ -65,7 +65,7 @@ func TestConnectMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 	e_wire := make([]byte, len(fh_wire)+10+2+4+2+2+len(id+will.Topic+will.Message+user.Name+user.Passwd))
 	copy(e_wire, fh_wire)
@@ -104,7 +104,7 @@ func TestConnackMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 	e_wire := []byte{fh_wire[0], fh_wire[1], 0x00, byte(code)}
 
@@ -142,7 +142,7 @@ func TestPublishMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 	e_wire := make([]byte, len(fh_wire)+int(length))
 	copy(e_wire, fh_wire)
@@ -172,7 +172,7 @@ func TestPubackMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	e_wire := make([]byte, 4)
 	copy(e_wire, fh.GetWire())
 	binary.BigEndian.PutUint16(e_wire[2:], id)
@@ -199,7 +199,7 @@ func TestPubrecMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	e_wire := make([]byte, 4)
 	copy(e_wire, fh.GetWire())
 	binary.BigEndian.PutUint16(e_wire[2:], id)
@@ -226,7 +226,7 @@ func TestPubrelMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	e_wire := make([]byte, 4)
 	copy(e_wire, fh.GetWire())
 	binary.BigEndian.PutUint16(e_wire[2:], id)
@@ -253,7 +253,7 @@ func TestPubcompMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	e_wire := make([]byte, 4)
 	copy(e_wire, fh.GetWire())
 	binary.BigEndian.PutUint16(e_wire[2:], id)
@@ -288,7 +288,7 @@ func TestSubscribeMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 	e_wire := make([]byte, len(fh_wire)+int(length))
 	copy(e_wire, fh_wire)
@@ -325,7 +325,7 @@ func TestSubackMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 	e_wire := make([]byte, len(fh_wire)+int(length))
 	copy(e_wire, fh_wire)
@@ -359,7 +359,7 @@ func TestUnsubscribeMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 	e_wire := make([]byte, len(fh_wire)+int(length))
 	copy(e_wire, fh_wire)
@@ -389,7 +389,7 @@ func TestUnsubackMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 	e_wire := make([]byte, 4)
 	copy(e_wire, fh_wire)
@@ -416,7 +416,7 @@ func TestPingreqMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 
 	if !reflect.DeepEqual(a_wire, fh_wire) {
@@ -440,7 +440,7 @@ func TestPingrespMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 
 	if !reflect.DeepEqual(a_wire, fh_wire) {
@@ -464,7 +464,7 @@ func TestDisconnectMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire, _ := a_m.GetWire()
+	a_wire := a_m.GetWire()
 	fh_wire := fh.GetWire()
 
 	if !reflect.DeepEqual(a_wire, fh_wire) {
@@ -495,7 +495,7 @@ func TestReadFrame(t *testing.T) {
 		User:        user,
 	}
 
-	wire, _ := e_m.GetWire()
+	wire := e_m.GetWire()
 	a_m, _ := ReadFrame(wire)
 
 	if !reflect.DeepEqual(a_m, e_m) {
