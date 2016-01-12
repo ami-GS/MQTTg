@@ -13,6 +13,7 @@ type TopicNode struct {
 }
 
 func (self *TopicNode) GetNodesByNumberSign() (out []*TopicNode) {
+	self.FullPath = strings.TrimSuffix(self.FullPath, "/")
 	out = []*TopicNode{self}
 	if len(self.Nodes) > 0 {
 		for key, node := range self.Nodes {
