@@ -34,10 +34,6 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 	currentPath := ""
 	for i, part := range parts {
 		bef := nxt
-		currentPath += part
-		if i != len(parts)-1 {
-			currentPath += "/"
-		}
 		switch part {
 		case "+":
 			// e.g.) A/+/C/D
@@ -60,6 +56,10 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 		default:
 			if strings.HasSuffix(part, "#") && strings.HasSuffix(part, "+") {
 				return nil, WILDCARD_MUST_NOT_BE_ADJACENT_TO_NAME
+			}
+			currentPath += part
+			if i != len(parts)-1 {
+				currentPath += "/"
 			}
 			nxt, ok = bef.Nodes[part]
 			if !ok {
