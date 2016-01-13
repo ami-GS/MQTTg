@@ -1,6 +1,7 @@
 package MQTTg
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -14,6 +15,7 @@ func (self *Transport) SendMessage(m Message) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("Send:", m.String())
 	return nil
 }
 
@@ -28,5 +30,6 @@ func (self *Transport) ReadMessage() (Message, error) {
 		return nil, err
 	}
 
+	fmt.Println("Recv:", m.String())
 	return m, nil
 }

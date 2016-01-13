@@ -257,6 +257,9 @@ func (self *BrokerSideClient) recvPingreqMessage(m *PingreqMessage) (err error) 
 	// TODO: calc elapsed time from previous pingreq.
 	//       and store the time to duration of Transport
 	err = self.SendMessage(NewPingrespMessage())
+	if err != nil {
+		return err
+	}
 	if self.KeepAlive != 0 {
 		self.ResetTimer()
 		go self.RunClientTimer()
