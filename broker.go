@@ -90,7 +90,7 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 	cleanSession := m.Flags&CleanSession_Flag == CleanSession_Flag
 	if cleanSession || !ok {
 		// TODO: need to manage QoS base processing
-		c.Duration = time.Duration(float32(m.KeepAlive) * 100000000 * 1.5)
+		c.Duration = time.Duration(float32(m.KeepAlive)*1.5) * time.Second
 		c.ID = m.ClientID
 		c.User = m.User
 		c.KeepAlive = m.KeepAlive
