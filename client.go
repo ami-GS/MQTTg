@@ -32,6 +32,7 @@ type Client struct {
 	CleanSession   bool
 	KeepAliveTimer *time.Timer
 	Duration       time.Duration
+	LoopQuit       chan bool
 }
 
 func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
@@ -47,11 +48,27 @@ func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
 		CleanSession:   false,
 		KeepAliveTimer: nil,
 		Duration:       0,
+		LoopQuit:       make(chan bool),
 	}
 }
 
 func (self *Client) ResetTimer() {
 	self.KeepAliveTimer.Reset(self.Duration)
+}
+
+func (self *Client) StartPingLoop() {
+	t := time.NewTicker(time.Duration(self.KeepAlive) * time.Second)
+	for {
+		select {
+		case <-t.C:
+			EmitError(self.keepAlive())
+		case <-self.LoopQuit:
+			t.Stop()
+			return
+		}
+	}
+	t.Stop()
+
 }
 
 func (self *Client) SendMessage(m Message) error {
@@ -221,7 +238,9 @@ func (self *Client) recvConnectMessage(m *ConnectMessage) (err error) {
 func (self *Client) recvConnackMessage(m *ConnackMessage) (err error) {
 	self.AckMessage(m.PacketID)
 	self.IsConnecting = true
-	self.keepAlive()
+	if self.KeepAlive != 0 {
+		go self.StartPingLoop()
+	}
 	self.Redelivery()
 	return err
 }
@@ -310,7 +329,6 @@ func (self *Client) recvPingrespMessage(m *PingrespMessage) (err error) {
 		// TODO: this must be 'reasonable amount of time'
 		err = self.SendMessage(NewDisconnectMessage())
 	} else {
-		self.keepAlive() // TODO: this make impossible to send ping manually
 	}
 	return err
 }

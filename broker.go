@@ -41,6 +41,7 @@ func (self *BrokerSideClient) DisconnectFromBroker() {
 	self.Will = nil
 	self.IsConnecting = false
 	self.KeepAliveTimer.Stop()
+	self.LoopQuit <- true
 	if self.CleanSession {
 		delete(self.Clients, self.ID)
 	}
