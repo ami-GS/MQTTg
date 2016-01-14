@@ -226,6 +226,7 @@ func (self *Client) Redelivery() (err error) {
 	if !self.CleanSession && len(self.PacketIDMap) > 0 {
 		for _, v := range self.PacketIDMap {
 			err = self.SendMessage(v)
+			EmitError(err)
 		}
 	}
 	return err
@@ -278,6 +279,9 @@ func (self *Client) recvPubackMessage(m *PubackMessage) (err error) {
 func (self *Client) recvPubrecMessage(m *PubrecMessage) (err error) {
 	// acknowledge the sent Publish packet
 	err = self.AckMessage(m.PacketID)
+	if err != nil {
+		return err
+	}
 	err = self.SendMessage(NewPubrelMessage(m.PacketID))
 	return err
 }
@@ -285,6 +289,9 @@ func (self *Client) recvPubrecMessage(m *PubrecMessage) (err error) {
 func (self *Client) recvPubrelMessage(m *PubrelMessage) (err error) {
 	// acknowledge the sent Pubrel packet
 	err = self.AckMessage(m.PacketID)
+	if err != nil {
+		return err
+	}
 	err = self.SendMessage(NewPubcompMessage(m.PacketID))
 	return err
 }
@@ -327,7 +334,6 @@ func (self *Client) recvPingrespMessage(m *PingrespMessage) (err error) {
 	if elapsed.Seconds() >= float64(self.KeepAlive) {
 		// TODO: this must be 'reasonable amount of time'
 		err = self.SendMessage(NewDisconnectMessage())
-	} else {
 	}
 	return err
 }

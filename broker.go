@@ -171,6 +171,9 @@ func (self *BrokerSideClient) recvPubackMessage(m *PubackMessage) (err error) {
 func (self *BrokerSideClient) recvPubrecMessage(m *PubrecMessage) (err error) {
 	// acknowledge the sent Publish packet
 	err = self.AckMessage(m.PacketID)
+	if err != nil {
+		return err
+	}
 	err = self.SendMessage(NewPubrelMessage(m.PacketID))
 	return err
 }
@@ -178,6 +181,9 @@ func (self *BrokerSideClient) recvPubrecMessage(m *PubrecMessage) (err error) {
 func (self *BrokerSideClient) recvPubrelMessage(m *PubrelMessage) (err error) {
 	// acknowledge the sent Pubrel packet
 	err = self.AckMessage(m.PacketID)
+	if err != nil {
+		return err
+	}
 	err = self.SendMessage(NewPubcompMessage(m.PacketID))
 	return err
 }
@@ -213,6 +219,7 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 					// TODO: check all arguments
 					err = self.SendMessage(NewPublishMessage(false, edge.RetainQoS, true,
 						edge.FullPath, m.PacketID, []uint8(edge.RetainMessage)))
+					EmitError(err)
 					// TODO: error validation
 				}
 			}
