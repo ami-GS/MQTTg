@@ -858,7 +858,7 @@ func (self *SubackMessage) String() string {
 	for i, v := range self.ReturnCodes {
 		codes += fmt.Sprintf("\t%d: %s\n", i, v.String())
 	}
-	return fmt.Sprintf("%s\n\tPacketID=%d\n%s")
+	return fmt.Sprintf("%s\n\tPacketID=%d\n%s", self.FixedHeader.String(), self.PacketID, codes)
 }
 
 func (self *SubackMessage) GetPacketID() uint16 {
