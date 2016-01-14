@@ -172,18 +172,17 @@ func (self *Client) Subscribe(topics []SubscribeTopic) error {
 }
 
 func (self *Client) Unsubscribe(topics []string) error {
-	for _, t := range self.SubTopics {
+	for _, name := range topics {
 		exist := false
-		for _, name := range topics {
-			if string(t.Topic) == string(name) {
+		for _, t := range self.SubTopics {
+			if string(t.Topic) == name {
+				t.State = UnSubscribeNonAck
 				exist = true
+				break
 			}
 		}
-		if exist {
-			t.State = UnSubscribeNonAck
-		} else {
-			// error? or warnning
-			// return error
+		if !exist {
+			return UNSUBSCRIBE_TO_NON_SUBSCRIBE_TOPIC
 		}
 	}
 
