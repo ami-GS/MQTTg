@@ -54,7 +54,7 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 			}
 			out = append(out, bef.GetNodesByNumberSign()...)
 		default:
-			if strings.HasSuffix(part, "#") && strings.HasSuffix(part, "+") {
+			if strings.HasSuffix(part, "#") || strings.HasSuffix(part, "+") {
 				return nil, WILDCARD_MUST_NOT_BE_ADJACENT_TO_NAME
 			}
 			currentPath += part
