@@ -164,6 +164,16 @@ func (self *Client) Subscribe(topics []SubscribeTopic) error {
 	if err != nil {
 		return err
 	}
+	for _, topic := range topics {
+		parts := strings.Split(topic.Topic, "/")
+		for i, part := range parts {
+			if part == "#" && i != len(parts)-1 {
+				return MULTI_LEVEL_WILDCARD_MUST_BE_ON_TAIL
+			} else if strings.HasSuffix(part, "#") || strings.HasSuffix(part, "+") {
+				return WILDCARD_MUST_NOT_BE_ADJACENT_TO_NAME
+			}
+		}
+	}
 	err = self.SendMessage(NewSubscribeMessage(id, topics))
 	if err == nil {
 		self.SubTopics = append(self.SubTopics, topics...)
