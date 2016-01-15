@@ -48,7 +48,7 @@ func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
 		CleanSession:   false,
 		KeepAliveTimer: nil,
 		Duration:       0,
-		LoopQuit:       make(chan bool),
+		LoopQuit:       nil,
 	}
 }
 
@@ -134,6 +134,7 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 		return err
 	}
 	self.Ct = &Transport{conn}
+	self.LoopQuit = make(chan bool)
 	self.CleanSession = cleanSession
 	go ReadLoop(self)
 	// below can avoid first IsConnecting validation
@@ -217,6 +218,8 @@ func (self *Client) Disconnect() error {
 	if err != nil {
 		return err
 	}
+	self.LoopQuit <- true
+	close(self.LoopQuit)
 	err = self.Ct.conn.Close()
 	self.IsConnecting = false
 	return err
