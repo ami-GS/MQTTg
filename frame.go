@@ -483,8 +483,6 @@ func NewPublishMessage(dup bool, qos uint8, retain bool, topic string, id uint16
 	if qos > 0 {
 		QoSexistence = 2
 	} else if id != 0 {
-		// TODO: emit warnning?
-		// id cannot be set when QoS == 0
 		id = 0
 	}
 

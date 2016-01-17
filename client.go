@@ -143,7 +143,7 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	return err
 }
 
-func (self *Client) Publish(topic, data string, qos uint8, retain bool) error {
+func (self *Client) Publish(topic, data string, qos uint8, retain bool) (err error) {
 	if qos >= 3 {
 		return INVALID_QOS_3
 	}
@@ -151,10 +151,14 @@ func (self *Client) Publish(topic, data string, qos uint8, retain bool) error {
 		return WILDCARD_CHARACTERS_IN_PUBLISH
 	}
 
-	id, err := self.getUsablePacketID()
-	if err != nil {
-		return err
+	var id uint16
+	if qos > 0 {
+		id, err = self.getUsablePacketID()
+		if err != nil {
+			return err
+		}
 	}
+
 	err = self.SendMessage(NewPublishMessage(false, qos, retain,
 		topic, id, []uint8(data)))
 	return err
@@ -273,6 +277,9 @@ func (self *Client) recvPublishMessage(m *PublishMessage) (err error) {
 	switch m.QoS {
 	// in any case, Dub must be 0
 	case 0:
+		if m.PacketID == 0 {
+			return PACKET_ID_SHOULD_BE_ZERO
+		}
 	case 1:
 		err = self.SendMessage(NewPubackMessage(m.PacketID))
 	case 2:

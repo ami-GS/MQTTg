@@ -152,6 +152,9 @@ func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) 
 	switch m.QoS {
 	// in any case, Dub must be 0
 	case 0:
+		if m.PacketID == 0 {
+			return PACKET_ID_SHOULD_BE_ZERO
+		}
 	case 1:
 		err = self.SendMessage(NewPubackMessage(m.PacketID))
 	case 2:
