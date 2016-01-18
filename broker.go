@@ -33,7 +33,10 @@ func (self *Broker) Start() error {
 		}
 		client := NewClient("", nil, 0, nil)
 		client.Ct = &Transport{conn}
-		go ReadLoop(&BrokerSideClient{client, self})
+		client.ReadChan = make(chan Message)
+		bc := &BrokerSideClient{client, self}
+		go bc.ReadMessage()
+		go ReadLoop(bc, bc.ReadChan)
 	}
 }
 
@@ -285,9 +288,4 @@ func (self *BrokerSideClient) recvDisconnectMessage(m *DisconnectMessage) (err e
 	self.DisconnectFromBroker()
 	// close the client
 	return err
-}
-
-func (self *BrokerSideClient) ReadMessage() (Message, error) {
-	// TODO: should be removed
-	return self.Ct.ReadMessage()
 }

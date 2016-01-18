@@ -15,7 +15,6 @@ type Edge interface {
 	recvPingreqMessage(*PingreqMessage) error
 	recvPingrespMessage(*PingrespMessage) error
 	recvDisconnectMessage(*DisconnectMessage) error
-	ReadMessage() (Message, error)
 }
 
 func ReadLoop(edge Edge, readChan chan Message) {

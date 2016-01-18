@@ -1,6 +1,7 @@
 package MQTTg
 
 import (
+	"io"
 	"math/rand"
 	"net"
 	"strings"
@@ -33,6 +34,7 @@ type Client struct {
 	KeepAliveTimer *time.Timer
 	Duration       time.Duration
 	LoopQuit       chan bool
+	ReadChan       chan Message
 }
 
 func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
@@ -49,6 +51,7 @@ func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
 		KeepAliveTimer: nil,
 		Duration:       0,
 		LoopQuit:       nil,
+		ReadChan:       nil,
 	}
 }
 
@@ -135,8 +138,10 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	}
 	self.Ct = &Transport{conn}
 	self.LoopQuit = make(chan bool)
+	self.ReadChan = make(chan Message)
 	self.CleanSession = cleanSession
-	go ReadLoop(self)
+	go self.ReadMessage()
+	go ReadLoop(self, self.ReadChan)
 	// below can avoid first IsConnecting validation
 	err = self.Ct.SendMessage(NewConnectMessage(self.KeepAlive,
 		self.ID, cleanSession, self.Will, self.User))
@@ -362,6 +367,17 @@ func (self *Client) recvDisconnectMessage(m *DisconnectMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Client) ReadMessage() (Message, error) {
-	return self.Ct.ReadMessage()
+func (self *Client) ReadMessage() {
+	for {
+		m, err := self.Ct.ReadMessage()
+		if err == io.EOF {
+			err := self.disconnectProcessing()
+			EmitError(err)
+			return
+		}
+		EmitError(err)
+		if m != nil {
+			self.ReadChan <- m
+		}
+	}
 }
