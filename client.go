@@ -227,8 +227,19 @@ func (self *Client) Disconnect() error {
 	if err != nil {
 		return err
 	}
-	self.LoopQuit <- true
-	close(self.LoopQuit)
+	err = self.disconnectProcessing()
+	return err
+}
+
+func (self *Client) disconnectProcessing() (err error) {
+	close(self.ReadChan)
+	// need to unify these condition for both side
+	if self.KeepAliveTimer != nil {
+		self.KeepAliveTimer.Stop() // for broker side
+	} else {
+		self.LoopQuit <- true // for client side
+		close(self.LoopQuit)
+	}
 	err = self.Ct.conn.Close()
 	self.IsConnecting = false
 	return err

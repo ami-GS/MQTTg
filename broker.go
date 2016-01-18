@@ -42,9 +42,7 @@ func (self *Broker) Start() error {
 
 func (self *BrokerSideClient) DisconnectFromBroker() {
 	self.Will = nil
-	self.IsConnecting = false
-	self.KeepAliveTimer.Stop()
-	self.LoopQuit <- true
+	self.disconnectProcessing()
 	if self.CleanSession {
 		delete(self.Clients, self.ID)
 	}
