@@ -18,46 +18,43 @@ type Edge interface {
 	ReadMessage() (Message, error)
 }
 
-func ReadLoop(edge Edge) (err error) {
-	var m Message
-	for {
-		EmitError(err)
-		// TODO: not cool
-		m, err = edge.ReadMessage()
-		if err != nil {
-			EmitError(err)
-			continue
-		}
-		switch m := m.(type) {
-		case *ConnectMessage:
-			err = edge.recvConnectMessage(m)
-		case *ConnackMessage:
-			err = edge.recvConnackMessage(m)
-		case *PublishMessage:
-			err = edge.recvPublishMessage(m)
-		case *PubackMessage:
-			err = edge.recvPubackMessage(m)
-		case *PubrecMessage:
-			err = edge.recvPubrecMessage(m)
-		case *PubrelMessage:
-			err = edge.recvPubrelMessage(m)
-		case *PubcompMessage:
-			err = edge.recvPubcompMessage(m)
-		case *SubscribeMessage:
-			err = edge.recvSubscribeMessage(m)
-		case *SubackMessage:
-			err = edge.recvSubackMessage(m)
-		case *UnsubscribeMessage:
-			err = edge.recvUnsubscribeMessage(m)
-		case *UnsubackMessage:
-			err = edge.recvUnsubackMessage(m)
-		case *PingreqMessage:
-			err = edge.recvPingreqMessage(m)
-		case *PingrespMessage:
-			err = edge.recvPingrespMessage(m)
-		case *DisconnectMessage:
-			err = edge.recvDisconnectMessage(m)
+func ReadLoop(edge Edge, readChan chan Message) {
+	for m := range readChan {
+		var err error
+		switch {
+		case m != nil:
+			switch m := m.(type) {
+			case *ConnectMessage:
+				err = edge.recvConnectMessage(m)
+			case *ConnackMessage:
+				err = edge.recvConnackMessage(m)
+			case *PublishMessage:
+				err = edge.recvPublishMessage(m)
+			case *PubackMessage:
+				err = edge.recvPubackMessage(m)
+			case *PubrecMessage:
+				err = edge.recvPubrecMessage(m)
+			case *PubrelMessage:
+				err = edge.recvPubrelMessage(m)
+			case *PubcompMessage:
+				err = edge.recvPubcompMessage(m)
+			case *SubscribeMessage:
+				err = edge.recvSubscribeMessage(m)
+			case *SubackMessage:
+				err = edge.recvSubackMessage(m)
+			case *UnsubscribeMessage:
+				err = edge.recvUnsubscribeMessage(m)
+			case *UnsubackMessage:
+				err = edge.recvUnsubackMessage(m)
+			case *PingreqMessage:
+				err = edge.recvPingreqMessage(m)
+			case *PingrespMessage:
+				err = edge.recvPingrespMessage(m)
+			case *DisconnectMessage:
+				err = edge.recvDisconnectMessage(m)
 
+			}
 		}
+		EmitError(err)
 	}
 }
