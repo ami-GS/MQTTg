@@ -381,9 +381,14 @@ func (self *Client) recvDisconnectMessage(m *DisconnectMessage) (err error) {
 func (self *Client) ReadMessage() {
 	for {
 		m, err := self.Ct.ReadMessage()
+		// the condition below is not cool
 		if err == io.EOF {
+			// when disconnect from beoker
 			err := self.disconnectProcessing()
 			EmitError(err)
+			return
+		} else if err != nil {
+			// when disconnect from client
 			return
 		}
 		EmitError(err)
