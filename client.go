@@ -122,6 +122,18 @@ func (self *Client) getUsablePacketID() (uint16, error) {
 	return id, nil
 }
 
+func (self *Client) setPreviousSession(prevSession *Client) {
+	self.SubTopics = prevSession.SubTopics
+	self.PacketIDMap = prevSession.PacketIDMap
+	self.CleanSession = prevSession.CleanSession
+	self.Will = prevSession.Will
+	self.Duration = prevSession.Duration
+	self.KeepAliveTimer = time.NewTimer(self.Duration)
+	self.KeepAlive = prevSession.KeepAlive
+	// TODO: authorize here
+	self.User = prevSession.User
+}
+
 func (self *Client) Connect(addPair string, cleanSession bool) error {
 	rAddr, err := net.ResolveTCPAddr("tcp4", addPair)
 	if err != nil {
@@ -384,6 +396,8 @@ func (self *Client) ReadMessage() {
 		// the condition below is not cool
 		if err == io.EOF {
 			// when disconnect from beoker
+			// TODO: server cannnot delete client session successfully
+			// delete(self.Clients, self.ID) should work well
 			err := self.disconnectProcessing()
 			EmitError(err)
 			return

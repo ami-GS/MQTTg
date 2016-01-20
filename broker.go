@@ -76,35 +76,36 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		return INVALID_PROTOCOL_LEVEL
 	}
 
-	_, ok := self.Clients[m.ClientID]
-	c := self.Client
-	if ok {
+	c, ok := self.Clients[m.ClientID]
+	if ok && c.IsConnecting {
 		// TODO: this might cause problem
 		err = c.SendMessage(NewConnackMessage(false, IdentifierRejected))
 		return CLIENT_ID_IS_USED_ALREADY
 	}
-	if len(m.ClientID) == 0 {
-		m.ClientID = self.ApplyDummyClientID()
+	cleanSession := m.Flags&CleanSession_Flag == CleanSession_Flag
+	if ok && !cleanSession {
+		self.Client.setPreviousSession(c)
 	}
-	// TODO: authorization
 
 	sessionPresent := ok
-	cleanSession := m.Flags&CleanSession_Flag == CleanSession_Flag
 	if cleanSession || !ok {
 		// TODO: need to manage QoS base processing
-		c.Duration = time.Duration(float32(m.KeepAlive)*1.5) * time.Second
-		c.ID = m.ClientID
-		c.User = m.User
-		c.KeepAlive = m.KeepAlive
-		c.Will = m.Will
-		c.CleanSession = cleanSession
-		c.KeepAliveTimer = time.NewTimer(c.Duration)
-		self.Clients[m.ClientID] = c
+		self.Client.Duration = time.Duration(float32(m.KeepAlive)*1.5) * time.Second
+		if len(m.ClientID) == 0 {
+			m.ClientID = self.ApplyDummyClientID()
+		}
+		self.Client.ID = m.ClientID
+		self.Client.User = m.User
+		self.Client.KeepAlive = m.KeepAlive
+		self.Client.Will = m.Will
+		self.Client.CleanSession = cleanSession
+		self.Client.KeepAliveTimer = time.NewTimer(self.Client.Duration)
 		sessionPresent = false
 	}
+	self.Clients[m.ClientID] = self.Client
 
 	if m.Flags&Will_Flag == Will_Flag {
-		c.Will = m.Will
+		self.Client.Will = m.Will
 		// TODO: consider QoS and Retain as broker need
 	} else {
 
@@ -113,9 +114,9 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 	if m.KeepAlive != 0 {
 		go self.RunClientTimer()
 	}
-	c.IsConnecting = true
-	err = c.SendMessage(NewConnackMessage(sessionPresent, Accepted))
-	c.Redelivery()
+	self.Client.IsConnecting = true
+	err = self.Client.SendMessage(NewConnackMessage(sessionPresent, Accepted))
+	self.Client.Redelivery()
 	return err
 }
 
