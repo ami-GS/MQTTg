@@ -51,6 +51,7 @@ func (self *BrokerSideClient) DisconnectFromBroker() {
 
 func (self *BrokerSideClient) RunClientTimer() {
 	<-self.KeepAliveTimer.C
+	EmitError(CLIENT_TIMED_OUT)
 	self.DisconnectFromBroker()
 	// TODO: logging?
 }
