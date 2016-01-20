@@ -244,16 +244,19 @@ func (self *Client) Disconnect() error {
 }
 
 func (self *Client) disconnectProcessing() (err error) {
-	close(self.ReadChan)
-	// need to unify these condition for both side
-	if self.KeepAliveTimer != nil {
-		self.KeepAliveTimer.Stop() // for broker side
-	} else {
-		self.LoopQuit <- true // for client side
-		close(self.LoopQuit)
+	// TODO: this might be not good way to close channel only once
+	if self.IsConnecting {
+		self.IsConnecting = false
+		close(self.ReadChan)
+		// need to unify these condition for both side
+		if self.KeepAliveTimer != nil {
+			self.KeepAliveTimer.Stop() // for broker side
+		} else {
+			self.LoopQuit <- true // for client side
+			close(self.LoopQuit)
+		}
+		err = self.Ct.conn.Close()
 	}
-	err = self.Ct.conn.Close()
-	self.IsConnecting = false
 	return err
 }
 
