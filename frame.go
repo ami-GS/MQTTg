@@ -191,29 +191,29 @@ const (
 
 func (self ConnectFlag) String() (s string) {
 	if self&CleanSession_Flag == CleanSession_Flag {
-		s += "CleanSession\n"
+		s += "\tCleanSession\n"
 	}
 	if self&Will_Flag == Will_Flag {
-		s += "WillFlag\n"
+		s += "\tWillFlag\n"
 	}
 	switch self & WillQoS_3_Flag {
 	case WillQoS_0_Flag:
-		s += "WillQoS_0\n"
+		s += "\tWillQoS_0\n"
 	case WillQoS_1_Flag:
-		s += "WillQoS_1\n"
+		s += "\tWillQoS_1\n"
 	case WillQoS_2_Flag:
-		s += "WillQoS_2\n"
+		s += "\tWillQoS_2\n"
 	case WillQoS_3_Flag:
-		s += "WillQoS_3\n"
+		s += "\tWillQoS_3\n"
 	}
 	if self&WillRetain_Flag == WillRetain_Flag {
-		s += "WillRetain_Flag\n"
+		s += "\tWillRetain_Flag\n"
 	}
 	if self&Password_Flag == Password_Flag {
-		s += "Password\n"
+		s += "\tPassword\n"
 	}
 	if self&UserName_Flag == UserName_Flag {
-		s += "UserName\n"
+		s += "\tUserName\n"
 	}
 	return s
 }
@@ -390,7 +390,7 @@ func ParseConnectMessage(fh *FixedHeader, wire []byte) (Message, error) {
 }
 
 func (self *ConnectMessage) String() string {
-	return fmt.Sprintf("%s\n\tProtocol=%s:%d, Flags=%s, KeepAlive=%d, ClientID=%s, Will=%s, UserInfo={NAME:%s, PASS:%s}\n",
+	return fmt.Sprintf("%s\n\tProtocol=%s:%d, Flags=\n%s\t, KeepAlive=%d, ClientID=%s, Will=%s, UserInfo={NAME:%s, PASS:%s}\n",
 		self.FixedHeader.String(), self.Protocol.Name, self.Protocol.Level, self.Flags.String(),
 		self.KeepAlive, self.ClientID, self.Will.String(), self.User.Name, self.User.Passwd)
 }
