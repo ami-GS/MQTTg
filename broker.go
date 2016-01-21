@@ -216,7 +216,7 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 				edge.Subscribers[self.ID] = subTopic.QoS
 				codes[i] = SubscribeReturnCode(subTopic.QoS)
 				self.SubTopics = append(self.SubTopics,
-					SubscribeTopic{SubscribeAck,
+					&SubscribeTopic{SubscribeAck,
 						edge.FullPath,
 						uint8(subTopic.QoS),
 					})
@@ -245,7 +245,7 @@ func (self *BrokerSideClient) recvUnsubscribeMessage(m *UnsubscribeMessage) (err
 		// protocol violation
 	}
 	// TODO: optimize here
-	result := []SubscribeTopic{}
+	result := []*SubscribeTopic{}
 	for _, t := range self.SubTopics {
 		del := false
 		for _, name := range m.TopicNames {

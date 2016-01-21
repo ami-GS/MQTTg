@@ -726,10 +726,10 @@ func NewSubscribeTopic(topic string, qos uint8) *SubscribeTopic {
 
 type SubscribeMessage struct {
 	*FixedHeader
-	SubscribeTopics []SubscribeTopic
+	SubscribeTopics []*SubscribeTopic
 }
 
-func NewSubscribeMessage(id uint16, topics []SubscribeTopic) *SubscribeMessage {
+func NewSubscribeMessage(id uint16, topics []*SubscribeTopic) *SubscribeMessage {
 	length := 2 + 3*len(topics)
 	for _, v := range topics {
 		length += len(v.Topic)
@@ -795,7 +795,7 @@ func ParseSubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 		}
 		qos := wire[i+length] & 0x03
 		m.SubscribeTopics = append(m.SubscribeTopics,
-			*NewSubscribeTopic(topic, qos))
+			NewSubscribeTopic(topic, qos))
 		i += length + 1
 	}
 

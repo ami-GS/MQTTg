@@ -27,7 +27,7 @@ type Client struct {
 	User           *User
 	KeepAlive      uint16
 	Will           *Will
-	SubTopics      []SubscribeTopic
+	SubTopics      []*SubscribeTopic
 	PingBegin      time.Time
 	PacketIDMap    map[uint16]Message
 	CleanSession   bool
@@ -45,7 +45,7 @@ func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
 		User:           user,
 		KeepAlive:      keepAlive,
 		Will:           will,
-		SubTopics:      make([]SubscribeTopic, 0),
+		SubTopics:      make([]*SubscribeTopic, 0),
 		PacketIDMap:    make(map[uint16]Message, 0),
 		CleanSession:   false,
 		KeepAliveTimer: nil,
@@ -103,6 +103,7 @@ func (self *Client) AckSubscribeTopic(order int, code SubscribeReturnCode) error
 	if code != SubscribeFailure {
 		self.SubTopics[order].QoS = uint8(code)
 		self.SubTopics[order].State = SubscribeAck
+		self.SubTopics = append(self.SubTopics, &SubscribeTopic{})
 	} else {
 		//failed
 	}
@@ -181,7 +182,7 @@ func (self *Client) Publish(topic, data string, qos uint8, retain bool) (err err
 	return err
 }
 
-func (self *Client) Subscribe(topics []SubscribeTopic) error {
+func (self *Client) Subscribe(topics []*SubscribeTopic) error {
 	id, err := self.getUsablePacketID()
 	if err != nil {
 		return err
