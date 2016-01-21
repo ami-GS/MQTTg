@@ -270,9 +270,9 @@ func TestPubcompMessage(t *testing.T) {
 
 func TestSubscribeMessage(t *testing.T) {
 	id := uint16(5)
-	topics := make([]SubscribeTopic, 2)
-	topics[0] = *NewSubscribeTopic("daiki/topic1", 1)
-	topics[1] = *NewSubscribeTopic("daiki/topic2", 2)
+	topics := make([]*SubscribeTopic, 2)
+	topics[0] = NewSubscribeTopic("daiki/topic1", 1)
+	topics[1] = NewSubscribeTopic("daiki/topic2", 2)
 	length := 2 + 3*len(topics)
 	for _, v := range topics {
 		length += len(v.Topic)
