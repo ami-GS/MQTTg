@@ -111,7 +111,7 @@ func (self *FixedHeader) GetWire() (wire []byte) {
 
 func (self *FixedHeader) String() string {
 	return fmt.Sprintf("[%s]\nDupulicate=%t, QoS=%d, Retain=%t, Remain Length=%d",
-		self.Type.String(), self.Dup, self.QoS, self.Retain, self.RemainLength)
+		ClFrames[self.Type].Apply(self.Type.String()), self.Dup, self.QoS, self.Retain, self.RemainLength)
 }
 
 func ParseFixedHeader(wire []byte) (*FixedHeader, int, error) {

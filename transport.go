@@ -15,7 +15,9 @@ func (self *Transport) SendMessage(m Message) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Send:", m.String())
+	if FrameDebug {
+		fmt.Println(ClSend.Apply("Send")+":"+self.conn.LocalAddr().String()+" ---> "+self.conn.RemoteAddr().String(), m.String())
+	}
 	return nil
 }
 
@@ -30,6 +32,9 @@ func (self *Transport) ReadMessage() (Message, error) {
 		return nil, err
 	}
 
-	fmt.Println("Recv:", m.String())
+	if FrameDebug {
+		fmt.Println(ClRecv.Apply("Recv")+":"+self.conn.LocalAddr().String()+" <--- "+self.conn.RemoteAddr().String(), m.String())
+	}
+
 	return m, nil
 }
