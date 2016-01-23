@@ -146,12 +146,7 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	if err != nil {
 		return err
 	}
-	lAddr, err := GetLocalAddr()
-	if err != nil {
-		return err
-	}
-
-	conn, err := net.DialTCP("tcp4", lAddr, rAddr)
+	conn, err := net.DialTCP("tcp4", nil, rAddr)
 	if err != nil {
 		return err
 	}
