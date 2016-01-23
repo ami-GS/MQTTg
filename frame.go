@@ -422,6 +422,10 @@ func (self ConnectReturnCode) String() string {
 	return codes[int(self)]
 }
 
+func (self ConnectReturnCode) Error() string {
+	return self.String()
+}
+
 type ConnackMessage struct {
 	*FixedHeader
 	SessionPresentFlag bool

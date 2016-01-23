@@ -86,6 +86,9 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 	cleanSession := m.Flags&CleanSession_Flag == CleanSession_Flag
 	if ok && !cleanSession {
 		self.Client.setPreviousSession(c)
+	} else if !cleanSession && len(m.ClientID) == 0 {
+		err = self.Ct.SendMessage(NewConnackMessage(false, IdentifierRejected))
+		return CLEANSESSION_MUST_BE_TRUE
 	}
 
 	sessionPresent := ok
@@ -155,7 +158,7 @@ func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) 
 	switch m.QoS {
 	// in any case, Dub must be 0
 	case 0:
-		if m.PacketID == 0 {
+		if m.PacketID != 0 {
 			return PACKET_ID_SHOULD_BE_ZERO
 		}
 	case 1:

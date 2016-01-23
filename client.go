@@ -136,6 +136,12 @@ func (self *Client) setPreviousSession(prevSession *Client) {
 }
 
 func (self *Client) Connect(addPair string, cleanSession bool) error {
+	if len(self.ID) == 0 && !cleanSession {
+		// TODO: here should be warnning
+		EmitError(CLEANSESSION_MUST_BE_TRUE)
+		cleanSession = true
+	}
+
 	rAddr, err := net.ResolveTCPAddr("tcp4", addPair)
 	if err != nil {
 		return err
@@ -285,7 +291,9 @@ func (self *Client) recvConnectMessage(m *ConnectMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 func (self *Client) recvConnackMessage(m *ConnackMessage) (err error) {
-	self.AckMessage(m.PacketID)
+	if m.ReturnCode != Accepted {
+		return m.ReturnCode
+	}
 	self.IsConnecting = true
 	if self.KeepAlive != 0 {
 		go self.StartPingLoop()
@@ -309,7 +317,7 @@ func (self *Client) recvPublishMessage(m *PublishMessage) (err error) {
 	switch m.QoS {
 	// in any case, Dub must be 0
 	case 0:
-		if m.PacketID == 0 {
+		if m.PacketID != 0 {
 			return PACKET_ID_SHOULD_BE_ZERO
 		}
 	case 1:
