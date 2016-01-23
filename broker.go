@@ -66,6 +66,8 @@ type BrokerSideClient struct {
 }
 
 func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) {
+	// NOTICE: when connection error is sent to client, self.Ct.SendMessage()
+	//         should be used for avoiding Isconnecting validation
 	if m.Protocol.Name != MQTT_3_1_1.Name {
 		// server MAY disconnect
 		return INVALID_PROTOCOL_NAME
@@ -73,14 +75,15 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 
 	if m.Protocol.Level != MQTT_3_1_1.Level {
 		// CHECK: Is false correct?
-		err = self.SendMessage(NewConnackMessage(false, UnacceptableProtocolVersion))
+		err = self.Ct.SendMessage(NewConnackMessage(false, UnacceptableProtocolVersion))
 		return INVALID_PROTOCOL_LEVEL
 	}
 
 	c, ok := self.Clients[m.ClientID]
 	if ok && c.IsConnecting {
 		// TODO: this might cause problem
-		err = c.SendMessage(NewConnackMessage(false, IdentifierRejected))
+		// TODO; which should be disconnected, connecting one? or trying to connect one?
+		err = self.Ct.SendMessage(NewConnackMessage(false, IdentifierRejected))
 		return CLIENT_ID_IS_USED_ALREADY
 	}
 	cleanSession := m.Flags&CleanSession_Flag == CleanSession_Flag
