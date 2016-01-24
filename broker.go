@@ -88,7 +88,7 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 	}
 	cleanSession := m.Flags&CleanSession_Flag == CleanSession_Flag
 	if ok && !cleanSession {
-		self.Client.setPreviousSession(c)
+		self.setPreviousSession(c)
 	} else if !cleanSession && len(m.ClientID) == 0 {
 		err = self.Ct.SendMessage(NewConnackMessage(false, IdentifierRejected))
 		return CLEANSESSION_MUST_BE_TRUE
@@ -97,22 +97,22 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 	sessionPresent := ok
 	if cleanSession || !ok {
 		// TODO: need to manage QoS base processing
-		self.Client.Duration = time.Duration(float32(m.KeepAlive)*1.5) * time.Second
+		self.Duration = time.Duration(float32(m.KeepAlive)*1.5) * time.Second
 		if len(m.ClientID) == 0 {
 			m.ClientID = self.ApplyDummyClientID()
 		}
-		self.Client.ID = m.ClientID
-		self.Client.User = m.User
-		self.Client.KeepAlive = m.KeepAlive
-		self.Client.Will = m.Will
-		self.Client.CleanSession = cleanSession
-		self.Client.KeepAliveTimer = time.NewTimer(self.Client.Duration)
+		self.ID = m.ClientID
+		self.User = m.User
+		self.KeepAlive = m.KeepAlive
+		self.Will = m.Will
+		self.CleanSession = cleanSession
+		self.KeepAliveTimer = time.NewTimer(self.Duration)
 		sessionPresent = false
 	}
 	self.Clients[m.ClientID] = self.Client
 
 	if m.Flags&Will_Flag == Will_Flag {
-		self.Client.Will = m.Will
+		self.Will = m.Will
 		// TODO: consider QoS and Retain as broker need
 	} else {
 
@@ -122,8 +122,8 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		go self.RunClientTimer()
 	}
 	self.Client.IsConnecting = true
-	err = self.Client.SendMessage(NewConnackMessage(sessionPresent, Accepted))
-	self.Client.Redelivery()
+	err = self.SendMessage(NewConnackMessage(sessionPresent, Accepted))
+	self.Redelivery()
 	return err
 }
 

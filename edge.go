@@ -18,10 +18,9 @@ type Edge interface {
 }
 
 func ReadLoop(edge Edge, readChan chan Message) {
+	var err error
 	for m := range readChan {
-		var err error
-		switch {
-		case m != nil:
+		if m != nil {
 			switch m := m.(type) {
 			case *ConnectMessage:
 				err = edge.recvConnectMessage(m)
