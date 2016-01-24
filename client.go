@@ -92,6 +92,9 @@ func (self *Client) SendMessage(m Message) error {
 				self.PacketIDMap[id] = m
 			}
 		case *PubrecMessage, *PubrelMessage, *SubscribeMessage, *UnsubscribeMessage:
+			if id == 0 {
+				return PACKET_ID_SHOULD_NOT_BE_ZERO
+			}
 			self.PacketIDMap[id] = m
 		}
 	}
