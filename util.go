@@ -95,11 +95,11 @@ func EmitError(e error) {
 	if e != nil {
 		str := ""
 		if _, t := e.(MQTT_ERROR); t {
-			str += "[MQTT_ERROR] "
+			str += "MQTT_ERROR"
 		} else {
-			str += "[NORMAL_ERROR]"
+			str += "NORMAL_ERROR"
 		}
-		fmt.Printf("%s%s\n", str, e.Error())
+		fmt.Printf("[%s] %s\n", ClError.Apply(str), e.Error())
 	}
 }
 
