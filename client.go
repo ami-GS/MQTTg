@@ -157,7 +157,7 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	self.LoopQuit = make(chan bool)
 	self.ReadChan = make(chan Message)
 	self.CleanSession = cleanSession
-	go self.ReadMessage()
+	go self.ReadMessage(nil)
 	go ReadLoop(self, self.ReadChan)
 	// below can avoid first IsConnecting validation
 	err = self.Ct.SendMessage(NewConnectMessage(self.KeepAlive,
@@ -252,6 +252,7 @@ func (self *Client) disconnectProcessing() (err error) {
 	// TODO: this might be not good way to close channel only once
 	if self.IsConnecting {
 		self.IsConnecting = false
+		self.Will = nil
 		close(self.ReadChan)
 		// need to unify these condition for both side
 		if self.KeepAliveTimer != nil {
@@ -400,7 +401,7 @@ func (self *Client) recvDisconnectMessage(m *DisconnectMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Client) ReadMessage() {
+func (self *Client) ReadMessage(bc *BrokerSideClient) {
 	for {
 		m, err := self.Ct.ReadMessage()
 		// the condition below is not cool
@@ -408,7 +409,12 @@ func (self *Client) ReadMessage() {
 			// when disconnect from beoker
 			// TODO: server cannnot delete client session successfully
 			// delete(self.Clients, self.ID) should work well
-			err := self.disconnectProcessing()
+			if bc != nil {
+				// TODO: optimize here
+				bc.DisconnectFromBroker()
+			} else {
+				err = self.disconnectProcessing()
+			}
 			EmitError(err)
 			return
 		} else if err != nil {

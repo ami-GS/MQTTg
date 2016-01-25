@@ -32,21 +32,25 @@ func (self *Broker) Start() error {
 			continue
 		}
 		client := NewClient("", nil, 0, nil)
-		client.Ct = &Transport{conn}
+		client.Ct = &Transport{false, conn}
 		client.ReadChan = make(chan Message)
 		bc := &BrokerSideClient{client, self}
-		go bc.ReadMessage()
+		go bc.ReadMessage(bc)
 		go ReadLoop(bc, bc.ReadChan)
 	}
 }
 
 func (self *BrokerSideClient) DisconnectFromBroker() {
-	self.Will = nil
-	self.disconnectProcessing()
-	if self.CleanSession {
-		delete(self.Clients, self.ID)
+	if self.Will.Retain {
+		self.TopicRoot.ApplyRetain(self.Will.Topic, self.Will.QoS, self.Will.Message)
 	}
-
+	nodes, _ := self.TopicRoot.GetTopicNodes(self.Will.Topic)
+	for subscriberID, _ := range nodes[0].Subscribers {
+		// TODO: check which qos should be used, Will.QoS or requested QoS
+		subscriber, _ := self.Clients[subscriberID]
+		subscriber.Publish(self.Will.Topic, self.Will.Message, self.Will.QoS, self.Will.Retain)
+	}
+	self.disconnectProcessing()
 }
 
 func (self *BrokerSideClient) RunClientTimer() {
@@ -293,7 +297,10 @@ func (self *BrokerSideClient) recvPingrespMessage(m *PingrespMessage) (err error
 }
 
 func (self *BrokerSideClient) recvDisconnectMessage(m *DisconnectMessage) (err error) {
-	self.DisconnectFromBroker()
+	if self.CleanSession {
+		delete(self.Clients, self.ID)
+	}
+	self.disconnectProcessing()
 	// close the client
 	return err
 }
