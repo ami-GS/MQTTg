@@ -279,7 +279,13 @@ func (self *Client) Redelivery() (err error) {
 	// TODO: Should the DUP flag be 1 ?
 	if !self.CleanSession && len(self.PacketIDMap) > 0 {
 		for _, v := range self.PacketIDMap {
-			err = self.SendMessage(v)
+			switch m := v.(type) {
+			case *PublishMessage:
+				m.Dup = true
+				err = self.SendMessage(m)
+			default:
+				err = self.SendMessage(v)
+			}
 			EmitError(err)
 		}
 	}
