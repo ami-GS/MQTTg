@@ -244,7 +244,14 @@ func (self *Client) Disconnect() error {
 	if err != nil {
 		return err
 	}
-	err = self.disconnectProcessing()
+
+	go func() {
+		// wait broker side detect the DisconnectMessage
+		// for further Will message delivery
+		time.Sleep(self.Duration * 2)
+		err = self.disconnectProcessing()
+	}()
+
 	return err
 }
 
