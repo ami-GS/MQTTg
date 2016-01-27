@@ -400,10 +400,12 @@ func (self *Client) recvPingreqMessage(m *PingreqMessage) (err error) {
 }
 
 func (self *Client) recvPingrespMessage(m *PingrespMessage) (err error) {
-	elapsed := time.Since(self.PingBegin)
+	self.Duration = time.Since(self.PingBegin)
 	// TODO: suspicious
-	self.Duration = elapsed
-	if elapsed.Seconds() >= float64(self.KeepAlive) {
+	if FrameDebug {
+		fmt.Printf("Ping RTT is %s\n\n", self.Duration)
+	}
+	if self.Duration.Seconds() >= float64(self.KeepAlive) {
 		// TODO: this must be 'reasonable amount of time'
 		err = self.SendMessage(NewDisconnectMessage())
 	}
