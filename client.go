@@ -1,6 +1,7 @@
 package MQTTg
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -35,6 +36,7 @@ type Client struct {
 	Duration       time.Duration
 	LoopQuit       chan bool
 	ReadChan       chan Message
+	Broker         *Broker
 }
 
 func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
@@ -48,7 +50,7 @@ func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
 		SubTopics:      make([]*SubscribeTopic, 0),
 		PacketIDMap:    make(map[uint16]Message, 0),
 		CleanSession:   false,
-		KeepAliveTimer: nil,
+		KeepAliveTimer: time.NewTimer(0),
 		Duration:       0,
 		LoopQuit:       nil,
 		ReadChan:       nil,
@@ -157,7 +159,7 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	self.LoopQuit = make(chan bool)
 	self.ReadChan = make(chan Message)
 	self.CleanSession = cleanSession
-	go self.ReadMessage(nil)
+	go self.ReadMessage()
 	go ReadLoop(self, self.ReadChan)
 	// below can avoid first IsConnecting validation
 	err = self.Ct.SendMessage(NewConnectMessage(self.KeepAlive,
@@ -261,15 +263,13 @@ func (self *Client) disconnectProcessing() (err error) {
 		self.IsConnecting = false
 		self.Will = nil
 		close(self.ReadChan)
-		// need to unify these condition for both side
-		if self.KeepAliveTimer != nil {
-			self.KeepAliveTimer.Stop() // for broker side
-		} else {
+		if self.Broker == nil {
 			self.LoopQuit <- true // for client side
 			close(self.LoopQuit)
 		}
-		err = self.Ct.conn.Close()
 	}
+	// this is for ConnectMessage rejection
+	err = self.Ct.conn.Close()
 	return err
 }
 
@@ -283,11 +283,11 @@ func (self *Client) AckMessage(id uint16) error {
 }
 
 func (self *Client) Redelivery() (err error) {
-	// TODO: Should the DUP flag be 1 ?
 	if !self.CleanSession && len(self.PacketIDMap) > 0 {
 		for _, v := range self.PacketIDMap {
 			switch m := v.(type) {
 			case *PublishMessage:
+				// Only Publish Message's DUP is set
 				m.Dup = true
 				err = self.SendMessage(m)
 			default:
@@ -304,6 +304,7 @@ func (self *Client) recvConnectMessage(m *ConnectMessage) (err error) {
 }
 func (self *Client) recvConnackMessage(m *ConnackMessage) (err error) {
 	if m.ReturnCode != Accepted {
+		self.disconnectProcessing()
 		return m.ReturnCode
 	}
 	self.IsConnecting = true
@@ -416,17 +417,16 @@ func (self *Client) recvDisconnectMessage(m *DisconnectMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Client) ReadMessage(bc *BrokerSideClient) {
+func (self *Client) ReadMessage() {
 	for {
 		m, err := self.Ct.ReadMessage()
 		// the condition below is not cool
 		if err == io.EOF {
-			// when disconnect from beoker
-			// TODO: server cannnot delete client session successfully
-			// delete(self.Clients, self.ID) should work well
-			if bc != nil {
-				// TODO: optimize here
-				bc.DisconnectFromBroker()
+			// when disconnect from broker
+			// TODO: currently BrokerSideClient are
+			//       disconnected by KeepAliveTimer
+			if self.Broker != nil {
+				self.Broker.DisconnectFromBroker(self)
 			} else {
 				err = self.disconnectProcessing()
 			}

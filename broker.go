@@ -32,32 +32,38 @@ func (self *Broker) Start() error {
 			continue
 		}
 		client := NewClient("", nil, 0, nil)
-		client.Ct = &Transport{false, conn}
+		client.Ct = &Transport{conn}
+		client.Broker = self
 		client.ReadChan = make(chan Message)
-		bc := &BrokerSideClient{client, self}
-		go bc.ReadMessage(bc)
+		bc := &BrokerSideClient{client}
+		go bc.ReadMessage()
 		go ReadLoop(bc, bc.ReadChan)
 	}
 }
 
-func (self *BrokerSideClient) DisconnectFromBroker() {
-	if self.Will.Retain {
-		self.TopicRoot.ApplyRetain(self.Will.Topic, self.Will.QoS, self.Will.Message)
+func (self *Broker) DisconnectFromBroker(c *Client) {
+	w := c.Will
+	if w != nil {
+		if w.Retain {
+			self.TopicRoot.ApplyRetain(w.Topic, w.QoS, w.Message)
+		}
+		nodes, _ := self.TopicRoot.GetTopicNodes(w.Topic)
+		for subscriberID, _ := range nodes[0].Subscribers {
+			// TODO: check which qos should be used, Will.QoS or requested QoS
+			subscriber, _ := self.Clients[subscriberID]
+			subscriber.Publish(w.Topic, w.Message, w.QoS, w.Retain)
+		}
 	}
-	nodes, _ := self.TopicRoot.GetTopicNodes(self.Will.Topic)
-	for subscriberID, _ := range nodes[0].Subscribers {
-		// TODO: check which qos should be used, Will.QoS or requested QoS
-		subscriber, _ := self.Clients[subscriberID]
-		subscriber.Publish(self.Will.Topic, self.Will.Message, self.Will.QoS, self.Will.Retain)
-	}
-	self.disconnectProcessing()
+	self.disconnectProcessing(c)
 }
 
-func (self *BrokerSideClient) RunClientTimer() {
-	<-self.KeepAliveTimer.C
-	EmitError(CLIENT_TIMED_OUT)
-	self.DisconnectFromBroker()
-	// TODO: logging?
+func (self *Broker) disconnectProcessing(c *Client) (err error) {
+	c.KeepAliveTimer.Stop()
+	err = c.disconnectProcessing()
+	if c.CleanSession {
+		delete(self.Clients, c.ID)
+	}
+	return
 }
 
 func (self *Broker) ApplyDummyClientID() string {
@@ -66,7 +72,13 @@ func (self *Broker) ApplyDummyClientID() string {
 
 type BrokerSideClient struct {
 	*Client
-	*Broker
+}
+
+func (self *BrokerSideClient) RunClientTimer() {
+	<-self.KeepAliveTimer.C
+	EmitError(CLIENT_TIMED_OUT)
+	self.Broker.DisconnectFromBroker(self.Client)
+	// TODO: logging?
 }
 
 func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) {
@@ -74,20 +86,23 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 	//         should be used for avoiding Isconnecting validation
 	if m.Protocol.Name != MQTT_3_1_1.Name {
 		// server MAY disconnect
+		self.disconnectProcessing()
 		return INVALID_PROTOCOL_NAME
 	}
 
 	if m.Protocol.Level != MQTT_3_1_1.Level {
 		// CHECK: Is false correct?
 		err = self.Ct.SendMessage(NewConnackMessage(false, UnacceptableProtocolVersion))
+		self.disconnectProcessing()
 		return INVALID_PROTOCOL_LEVEL
 	}
 
-	c, ok := self.Clients[m.ClientID]
+	c, ok := self.Broker.Clients[m.ClientID]
 	if ok && c.IsConnecting {
 		// TODO: this might cause problem
 		// TODO; which should be disconnected, connecting one? or trying to connect one?
 		err = self.Ct.SendMessage(NewConnackMessage(false, IdentifierRejected))
+		self.disconnectProcessing()
 		return CLIENT_ID_IS_USED_ALREADY
 	}
 	cleanSession := m.Flags&CleanSession_Flag == CleanSession_Flag
@@ -95,6 +110,7 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		self.setPreviousSession(c)
 	} else if !cleanSession && len(m.ClientID) == 0 {
 		err = self.Ct.SendMessage(NewConnackMessage(false, IdentifierRejected))
+		self.disconnectProcessing()
 		return CLEANSESSION_MUST_BE_TRUE
 	}
 
@@ -103,7 +119,7 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		// TODO: need to manage QoS base processing
 		self.Duration = time.Duration(float32(m.KeepAlive)*1.5) * time.Second
 		if len(m.ClientID) == 0 {
-			m.ClientID = self.ApplyDummyClientID()
+			m.ClientID = self.Broker.ApplyDummyClientID()
 		}
 		self.ID = m.ClientID
 		self.User = m.User
@@ -113,7 +129,7 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		self.KeepAliveTimer = time.NewTimer(self.Duration)
 		sessionPresent = false
 	}
-	self.Clients[m.ClientID] = self.Client
+	self.Broker.Clients[m.ClientID] = self.Client
 
 	if m.Flags&Will_Flag == Will_Flag {
 		self.Will = m.Will
@@ -125,7 +141,7 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 	if m.KeepAlive != 0 {
 		go self.RunClientTimer()
 	}
-	self.Client.IsConnecting = true
+	self.IsConnecting = true
 	err = self.SendMessage(NewConnackMessage(sessionPresent, Accepted))
 	self.Redelivery()
 	return err
@@ -150,15 +166,15 @@ func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) 
 			// discard retained message
 			data = ""
 		}
-		self.TopicRoot.ApplyRetain(m.TopicName, m.QoS, data)
+		self.Broker.TopicRoot.ApplyRetain(m.TopicName, m.QoS, data)
 	}
 
-	nodes, err := self.TopicRoot.GetTopicNodes(m.TopicName)
+	nodes, err := self.Broker.TopicRoot.GetTopicNodes(m.TopicName)
 	if err != nil {
 		return err
 	}
 	for subscriberID, qos := range nodes[0].Subscribers {
-		subscriber, _ := self.Clients[subscriberID]
+		subscriber, _ := self.Broker.Clients[subscriberID]
 		subscriber.Publish(m.TopicName, string(m.Payload), qos, false)
 	}
 
@@ -215,7 +231,7 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 	returnCodes := make([]SubscribeReturnCode, 0)
 	for _, subTopic := range m.SubscribeTopics {
 		// TODO: need to validate wheter there are same topics or not
-		edges, err := self.TopicRoot.GetTopicNodes(subTopic.Topic)
+		edges, err := self.Broker.TopicRoot.GetTopicNodes(subTopic.Topic)
 		codes := make([]SubscribeReturnCode, len(edges))
 		if err != nil {
 			for i, _ := range codes {
@@ -297,10 +313,7 @@ func (self *BrokerSideClient) recvPingrespMessage(m *PingrespMessage) (err error
 }
 
 func (self *BrokerSideClient) recvDisconnectMessage(m *DisconnectMessage) (err error) {
-	if self.CleanSession {
-		delete(self.Clients, self.ID)
-	}
-	self.disconnectProcessing()
+	self.Broker.disconnectProcessing(self.Client)
 	// close the client
 	return err
 }
