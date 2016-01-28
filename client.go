@@ -382,9 +382,11 @@ func (self *Client) recvSubscribeMessage(m *SubscribeMessage) (err error) {
 func (self *Client) recvSubackMessage(m *SubackMessage) (err error) {
 	// acknowledge the sent subscribe packet
 	self.AckMessage(m.PacketID)
+	/* it cannnot be guaranteed that several Subacks return as sent subscribes order
 	for i, code := range m.ReturnCodes {
 		_ = self.AckSubscribeTopic(i, code)
 	}
+	*/
 	return err
 }
 func (self *Client) recvUnsubscribeMessage(m *UnsubscribeMessage) (err error) {
