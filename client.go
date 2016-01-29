@@ -211,20 +211,6 @@ func (self *Client) Subscribe(topics []*SubscribeTopic) error {
 }
 
 func (self *Client) Unsubscribe(topics []string) error {
-	for _, name := range topics {
-		exist := false
-		for _, t := range self.SubTopics {
-			if string(t.Topic) == name {
-				t.State = UnSubscribeNonAck
-				exist = true
-				break
-			}
-		}
-		if !exist {
-			return UNSUBSCRIBE_TO_NON_SUBSCRIBE_TOPIC
-		}
-	}
-
 	id, err := self.getUsablePacketID()
 	if err != nil {
 		return err
@@ -382,11 +368,6 @@ func (self *Client) recvSubscribeMessage(m *SubscribeMessage) (err error) {
 func (self *Client) recvSubackMessage(m *SubackMessage) (err error) {
 	// acknowledge the sent subscribe packet
 	self.AckMessage(m.PacketID)
-	/* it cannnot be guaranteed that several Subacks return as sent subscribes order
-	for i, code := range m.ReturnCodes {
-		_ = self.AckSubscribeTopic(i, code)
-	}
-	*/
 	return err
 }
 func (self *Client) recvUnsubscribeMessage(m *UnsubscribeMessage) (err error) {
