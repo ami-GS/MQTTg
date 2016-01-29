@@ -272,6 +272,14 @@ func (self *BrokerSideClient) recvUnsubscribeMessage(m *UnsubscribeMessage) (err
 	if len(m.TopicNames) == 0 {
 		// protocol violation
 	}
+
+	for _, name := range m.TopicNames {
+		// TODO: if there are no nodes, method should not make new ones
+		edges, _ := self.Broker.TopicRoot.GetTopicNodes(name)
+		for _, edge := range edges {
+			delete(edge.Subscribers, self.ID)
+		}
+	}
 	// TODO: optimize here
 	result := []*SubscribeTopic{}
 	for _, t := range self.SubTopics {
