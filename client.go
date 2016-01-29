@@ -211,6 +211,17 @@ func (self *Client) Subscribe(topics []*SubscribeTopic) error {
 }
 
 func (self *Client) Unsubscribe(topics []string) error {
+	for _, name := range topics {
+		parts := strings.Split(name, "/")
+		for i, part := range parts {
+			if part == "#" && i != len(parts)-1 {
+				return MULTI_LEVEL_WILDCARD_MUST_BE_ON_TAIL
+			} else if strings.HasSuffix(part, "#") || strings.HasSuffix(part, "+") {
+				return WILDCARD_MUST_NOT_BE_ADJACENT_TO_NAME
+			}
+		}
+	}
+
 	id, err := self.getUsablePacketID()
 	if err != nil {
 		return err
