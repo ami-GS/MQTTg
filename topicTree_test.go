@@ -62,4 +62,18 @@ func TestGetTopicNodes(t *testing.T) {
 		}
 	}
 
+	invalidTopics := []string{
+		"a/b#", "a+", "a/b/#/c",
+	}
+	e_errors := []error{
+		WILDCARD_MUST_NOT_BE_ADJACENT_TO_NAME, WILDCARD_MUST_NOT_BE_ADJACENT_TO_NAME,
+		MULTI_LEVEL_WILDCARD_MUST_BE_ON_TAIL,
+	}
+
+	for i, topic := range invalidTopics {
+		_, err := root.GetTopicNodes(topic, true)
+		if e_errors[i] != err {
+			t.Errorf("got %v\nwant %v", err, e_errors[i])
+		}
+	}
 }
