@@ -47,7 +47,7 @@ func (self *Broker) DisconnectFromBroker(c *Client) {
 		if w.Retain {
 			self.TopicRoot.ApplyRetain(w.Topic, w.QoS, w.Message)
 		}
-		nodes, _ := self.TopicRoot.GetTopicNodes(w.Topic)
+		nodes, _ := self.TopicRoot.GetTopicNodes(w.Topic, true)
 		for subscriberID, _ := range nodes[0].Subscribers {
 			// TODO: check which qos should be used, Will.QoS or requested QoS
 			subscriber, _ := self.Clients[subscriberID]
@@ -169,7 +169,7 @@ func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) 
 		self.Broker.TopicRoot.ApplyRetain(m.TopicName, m.QoS, data)
 	}
 
-	nodes, err := self.Broker.TopicRoot.GetTopicNodes(m.TopicName)
+	nodes, err := self.Broker.TopicRoot.GetTopicNodes(m.TopicName, true)
 	if err != nil {
 		return err
 	}
@@ -231,7 +231,7 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 	returnCodes := make([]SubscribeReturnCode, 0)
 	for _, subTopic := range m.SubscribeTopics {
 		// TODO: need to validate wheter there are same topics or not
-		edges, err := self.Broker.TopicRoot.GetTopicNodes(subTopic.Topic)
+		edges, err := self.Broker.TopicRoot.GetTopicNodes(subTopic.Topic, true)
 		codes := make([]SubscribeReturnCode, len(edges))
 		if err != nil {
 			for i, _ := range codes {
@@ -274,11 +274,7 @@ func (self *BrokerSideClient) recvUnsubscribeMessage(m *UnsubscribeMessage) (err
 	}
 
 	for _, name := range m.TopicNames {
-		// TODO: if there are no nodes, method should not make new ones
-		edges, _ := self.Broker.TopicRoot.GetTopicNodes(name)
-		for _, edge := range edges {
-			delete(edge.Subscribers, self.ID)
-		}
+		self.Broker.TopicRoot.DeleteSubscriber(self.ID, name)
 	}
 	// TODO: optimize here
 	result := []*SubscribeTopic{}

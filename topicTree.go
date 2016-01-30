@@ -26,7 +26,7 @@ func (self *TopicNode) GetNodesByNumberSign() (out []*TopicNode) {
 	return out
 }
 
-func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
+func (self *TopicNode) GetTopicNodes(topic string, addNewNodes bool) (out []*TopicNode, e error) {
 	// this topic may have wildcard +*
 	parts := strings.Split(topic, "/")
 	nxt := self
@@ -41,7 +41,7 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 				if strings.HasPrefix(key, "$") {
 					continue
 				}
-				tmp, err := self.GetTopicNodes(strings.Replace(topic, "+", key, 1))
+				tmp, err := self.GetTopicNodes(strings.Replace(topic, "+", key, 1), addNewNodes)
 				if err != nil {
 					return nil, err
 				}
@@ -62,11 +62,11 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 				currentPath += "/"
 			}
 			nxt, ok = bef.Nodes[part]
-			if !ok {
+			if !ok && addNewNodes {
 				bef.ApplyNewTopic(part, currentPath)
 				nxt, _ = bef.Nodes[part]
 			}
-			if len(parts)-1 == i {
+			if len(parts)-1 == i && nxt != nil {
 				out = append(out, nxt)
 			}
 		}
@@ -76,7 +76,7 @@ func (self *TopicNode) GetTopicNodes(topic string) (out []*TopicNode, e error) {
 
 func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) ([]*TopicNode, []SubscribeReturnCode, error) {
 	// find topic edge and apply the clientID
-	edges, err := self.GetTopicNodes(topic)
+	edges, err := self.GetTopicNodes(topic, true)
 	if err != nil {
 		return nil, []SubscribeReturnCode{SubscribeFailure}, err
 	}
@@ -90,7 +90,7 @@ func (self *TopicNode) ApplySubscriber(clientID, topic string, qos uint8) ([]*To
 }
 
 func (self *TopicNode) DeleteSubscriber(clientID, topic string) error {
-	edges, err := self.GetTopicNodes(topic)
+	edges, err := self.GetTopicNodes(topic, false)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (self *TopicNode) DeleteSubscriber(clientID, topic string) error {
 }
 
 func (self *TopicNode) ApplyRetain(topic string, qos uint8, retain string) error {
-	edges, err := self.GetTopicNodes(topic)
+	edges, err := self.GetTopicNodes(topic, true)
 	if err != nil {
 		return err
 	}

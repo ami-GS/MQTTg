@@ -25,7 +25,7 @@ func TestGetTopicNodes(t *testing.T) {
 	}
 	for _, topic := range Topics {
 		// set topics
-		root.GetTopicNodes(topic)
+		root.GetTopicNodes(topic, true)
 	}
 
 	searchTopics := []string{
@@ -42,7 +42,7 @@ func TestGetTopicNodes(t *testing.T) {
 	}
 
 	for i, topic := range searchTopics {
-		topicNodes, _ := root.GetTopicNodes(topic)
+		topicNodes, _ := root.GetTopicNodes(topic, true)
 		if len(topicNodes) != len(e_topics[i]) {
 			t.Errorf("got %v\nwant %v", len(topicNodes), len(e_topics[i]))
 			//continue
