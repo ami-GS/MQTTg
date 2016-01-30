@@ -249,12 +249,8 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 				if len(edge.RetainMessage) > 0 {
 					// publish retain
 					// TODO: check all arguments
-					id, err := self.getUsablePacketID()
+					err = self.Publish(edge.FullPath, edge.RetainMessage, edge.RetainQoS, true)
 					EmitError(err)
-					err = self.SendMessage(NewPublishMessage(false, edge.RetainQoS, true,
-						edge.FullPath, id, []uint8(edge.RetainMessage)))
-					EmitError(err)
-					// TODO: error validation
 				}
 			}
 		}
