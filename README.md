@@ -8,4 +8,3 @@ MQTT version 3.1.1 implement in Golang following [HERE](http://docs.oasis-open.o
 2. Encryption & Authentication
 3. Error handling
 4. Distinguish between error and warning
-5. Apply color for String() output
