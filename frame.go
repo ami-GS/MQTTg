@@ -469,9 +469,7 @@ func ParseConnackMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m := &ConnackMessage{
 		FixedHeader: fh,
 	}
-	if wire[0] == 1 {
-		m.SessionPresentFlag = true
-	}
+	m.SessionPresentFlag = (wire[0] == 1)
 	m.ReturnCode = ConnectReturnCode(wire[1])
 	return m, nil
 }
