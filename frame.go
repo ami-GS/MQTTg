@@ -143,12 +143,6 @@ func ParseFixedHeader(wire []byte) (*FixedHeader, int, error) {
 	return h, remainPartLen + 1, nil
 }
 
-type VariableHeader interface {
-	VHeaderParse(data []byte)
-	VHeaderWire() ([]byte, error)
-	VHeaderString() string
-}
-
 type FrameParser func(fh *FixedHeader, wire []byte) (Message, error)
 
 var ParseMessage = map[MessageType]FrameParser{
