@@ -932,9 +932,9 @@ func ParseUnsubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
 	m.PacketID = binary.BigEndian.Uint16(wire[:2])
 	allLen := len(wire)
 	for i := 2; i < allLen; {
-		topicLen := int(binary.BigEndian.Uint16(wire[i : i+2]))
-		m.TopicNames = append(m.TopicNames, string(wire[i+2:i+2+topicLen]))
-		i += 2 + topicLen
+		length, topic := UTF8_decode(wire[i:])
+		m.TopicNames = append(m.TopicNames, topic)
+		i += length
 	}
 	return m, nil
 }
