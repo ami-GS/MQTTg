@@ -9,6 +9,18 @@ type Transport struct {
 	conn *net.TCPConn
 }
 
+func NewTransport(addPair string) (*Transport, error) {
+	rAddr, err := net.ResolveTCPAddr("tcp4", addPair)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := net.DialTCP("tcp4", nil, rAddr)
+	if err != nil {
+		return nil, err
+	}
+	return &Transport{conn}, nil
+}
+
 func (self *Transport) SendMessage(m Message) error {
 	wire := m.GetWire()
 	_, err := self.conn.Write(wire)

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"net"
 	"strings"
 	"time"
 )
@@ -147,15 +146,12 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 		cleanSession = true
 	}
 
-	rAddr, err := net.ResolveTCPAddr("tcp4", addPair)
+	t, err := NewTransport(addPair)
 	if err != nil {
 		return err
 	}
-	conn, err := net.DialTCP("tcp4", nil, rAddr)
-	if err != nil {
-		return err
-	}
-	self.Ct = &Transport{conn}
+
+	self.Ct = t
 	self.LoopQuit = make(chan bool)
 	self.ReadChan = make(chan Message)
 	self.CleanSession = cleanSession
