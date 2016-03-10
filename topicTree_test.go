@@ -76,4 +76,36 @@ func TestGetTopicNodes(t *testing.T) {
 			t.Errorf("got %v\nwant %v", err, e_errors[i])
 		}
 	}
+
+	testSubscribe := [][]string{
+		[]string{"client-1", "a/b/c/d/e"},
+		[]string{"client-2", "a/b/c/d/e", "a/b/cc/d/e"},
+		[]string{"client-3", "a/+/c/+/e", "a/b/+/d/#"},
+	}
+
+	for _, strs := range testSubscribe {
+		for j := 1; j < len(strs); j++ {
+			root.ApplySubscriber(strs[0], strs[j], 2)
+		}
+	}
+
+	e_Subscribers := [][]string{
+		[]string{"a/b/c/d/e", "client-1", "client-2"},
+		[]string{"a/b/cc/d/e", "client-2", "client-3"},
+		[]string{"a/+/c/+/e", "client-3"},
+		[]string{"a/b/+/d/#", "client-3"},
+	}
+
+	for _, e_Subscriber := range e_Subscribers {
+		topicNodes, _ := root.GetTopicNodes(e_Subscriber[0], false)
+		for _, node := range topicNodes {
+			for j := 1; j < len(e_Subscriber); j++ {
+				_, ok := node.Subscribers[e_Subscriber[j]]
+				if !ok {
+					t.Errorf("%v is not in %v", e_Subscriber[j], e_Subscriber[0])
+				}
+			}
+		}
+
+	}
 }
