@@ -9,7 +9,7 @@ import (
 type Broker struct {
 	MyAddr *net.TCPAddr
 	// TODO: check whether not good to use addr as key
-	Clients   map[string]*Client //map[clientID]*CLient
+	Clients   map[string]*ClientInfo //map[clientID]*ClientInfo
 	TopicRoot *TopicNode
 }
 
@@ -31,17 +31,28 @@ func (self *Broker) Start() error {
 			EmitError(err)
 			continue
 		}
-		client := NewClient("", nil, 0, nil)
-		client.Ct = &Transport{conn}
-		client.Broker = self
-		client.ReadChan = make(chan Message)
-		bc := &BrokerSideClient{client}
+		clientInfo := &ClientInfo{
+			IsConnecting:   false,
+			ID:             "",
+			User:           nil,
+			KeepAlive:      0,
+			Will:           nil,
+			PacketIDMap:    make(map[uint16]Message, 0),
+			CleanSession:   false,
+			KeepAliveTimer: time.NewTimer(0),
+			Duration:       0,
+			ReadChan:       nil,
+		}
+		clientInfo.Ct = &Transport{conn}
+		clientInfo.Broker = self
+		clientInfo.ReadChan = make(chan Message)
+		bc := &BrokerSideClient{clientInfo, make([]*SubscribeTopic, 0)}
 		go bc.ReadMessage()
 		go ReadLoop(bc, bc.ReadChan)
 	}
 }
 
-func (self *Broker) DisconnectFromBroker(c *Client) {
+func (self *Broker) DisconnectFromBroker(c *ClientInfo) {
 	w := c.Will
 	if w != nil {
 		if w.Retain {
@@ -51,13 +62,22 @@ func (self *Broker) DisconnectFromBroker(c *Client) {
 		for subscriberID, _ := range nodes[0].Subscribers {
 			// TODO: check which qos should be used, Will.QoS or requested QoS
 			subscriber, _ := self.Clients[subscriberID]
-			subscriber.Publish(w.Topic, w.Message, w.QoS, w.Retain)
+
+			var id uint16 = 0
+			var err error
+			if w.QoS > 0 {
+				id, err = subscriber.getUsablePacketID()
+				if err != nil {
+					panic(err)
+				}
+			}
+			subscriber.SendMessage(NewPublishMessage(false, w.QoS, w.Retain, w.Topic, id, []uint8(w.Message)))
 		}
 	}
 	self.disconnectProcessing(c)
 }
 
-func (self *Broker) disconnectProcessing(c *Client) (err error) {
+func (self *Broker) disconnectProcessing(c *ClientInfo) (err error) {
 	c.KeepAliveTimer.Stop()
 	err = c.disconnectProcessing()
 	if c.CleanSession {
@@ -71,13 +91,14 @@ func (self *Broker) ApplyDummyClientID() string {
 }
 
 type BrokerSideClient struct {
-	*Client
+	*ClientInfo
+	SubTopics []*SubscribeTopic
 }
 
 func (self *BrokerSideClient) RunClientTimer() {
 	<-self.KeepAliveTimer.C
 	EmitError(CLIENT_TIMED_OUT)
-	self.Broker.DisconnectFromBroker(self.Client)
+	self.Broker.DisconnectFromBroker(self.ClientInfo)
 	// TODO: logging?
 }
 
@@ -129,7 +150,7 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		self.KeepAliveTimer = time.NewTimer(self.Duration)
 		sessionPresent = false
 	}
-	self.Broker.Clients[m.ClientID] = self.Client
+	self.Broker.Clients[m.ClientID] = self.ClientInfo
 
 	if m.Flags&Will_Flag == Will_Flag {
 		self.Will = m.Will
@@ -175,7 +196,15 @@ func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) 
 	}
 	for subscriberID, qos := range nodes[0].Subscribers {
 		subscriber, _ := self.Broker.Clients[subscriberID]
-		subscriber.Publish(m.TopicName, string(m.Payload), qos, false)
+		var id uint16 = 0
+		var err error
+		if qos > 0 {
+			id, err = subscriber.getUsablePacketID()
+			if err != nil {
+				panic(err)
+			}
+		}
+		subscriber.SendMessage(NewPublishMessage(false, qos, false, m.TopicName, id, m.Payload))
 	}
 
 	switch m.QoS {
@@ -249,7 +278,14 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 				if len(edge.RetainMessage) > 0 {
 					// publish retain
 					// TODO: check all arguments
-					err = self.Publish(edge.FullPath, edge.RetainMessage, edge.RetainQoS, true)
+					var id uint16
+					if edge.RetainQoS > 0 {
+						id, err = self.getUsablePacketID()
+						if err != nil {
+							return err
+						}
+					}
+					err = self.SendMessage(NewPublishMessage(false, edge.RetainQoS, true, edge.FullPath, id, []uint8(edge.RetainMessage)))
 					EmitError(err)
 				}
 			}
@@ -313,7 +349,7 @@ func (self *BrokerSideClient) recvPingrespMessage(m *PingrespMessage) (err error
 }
 
 func (self *BrokerSideClient) recvDisconnectMessage(m *DisconnectMessage) (err error) {
-	self.Broker.disconnectProcessing(self.Client)
+	self.Broker.disconnectProcessing(self.ClientInfo)
 	// close the client
 	return err
 }

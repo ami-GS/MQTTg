@@ -20,15 +20,13 @@ func NewUser(name, pass string) *User {
 	}
 }
 
-type Client struct {
+type ClientInfo struct {
 	Ct             *Transport
 	IsConnecting   bool
 	ID             string
 	User           *User
 	KeepAlive      uint16
 	Will           *Will
-	SubTopics      []*SubscribeTopic
-	PingBegin      time.Time
 	PacketIDMap    map[uint16]Message
 	CleanSession   bool
 	KeepAliveTimer *time.Timer
@@ -38,25 +36,31 @@ type Client struct {
 	Broker         *Broker
 }
 
+type Client struct {
+	*ClientInfo
+	PingBegin time.Time
+}
+
 func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
 	// TODO: when id is empty, then apply random
 	return &Client{
-		IsConnecting:   false,
-		ID:             id,
-		User:           user,
-		KeepAlive:      keepAlive,
-		Will:           will,
-		SubTopics:      make([]*SubscribeTopic, 0),
-		PacketIDMap:    make(map[uint16]Message, 0),
-		CleanSession:   false,
-		KeepAliveTimer: time.NewTimer(0),
-		Duration:       0,
-		LoopQuit:       nil,
-		ReadChan:       nil,
+		ClientInfo: &ClientInfo{
+			IsConnecting:   false,
+			ID:             id,
+			User:           user,
+			KeepAlive:      keepAlive,
+			Will:           will,
+			PacketIDMap:    make(map[uint16]Message, 0),
+			CleanSession:   false,
+			KeepAliveTimer: time.NewTimer(0),
+			Duration:       0,
+			LoopQuit:       nil,
+			ReadChan:       nil,
+		},
 	}
 }
 
-func (self *Client) ResetTimer() {
+func (self *ClientInfo) ResetTimer() {
 	self.KeepAliveTimer.Reset(self.Duration)
 }
 
@@ -75,7 +79,7 @@ func (self *Client) StartPingLoop() {
 
 }
 
-func (self *Client) SendMessage(m Message) error {
+func (self *ClientInfo) SendMessage(m Message) error {
 	if !self.IsConnecting {
 		return NOT_CONNECTED
 	}
@@ -103,18 +107,7 @@ func (self *Client) SendMessage(m Message) error {
 	return err
 }
 
-func (self *Client) AckSubscribeTopic(order int, code SubscribeReturnCode) error {
-	if code != SubscribeFailure {
-		self.SubTopics[order].QoS = uint8(code)
-		self.SubTopics[order].State = SubscribeAck
-		self.SubTopics = append(self.SubTopics, &SubscribeTopic{})
-	} else {
-		//failed
-	}
-	return nil
-}
-
-func (self *Client) getUsablePacketID() (uint16, error) {
+func (self *ClientInfo) getUsablePacketID() (uint16, error) {
 	ok := true
 	var id uint16
 	for trial := 0; ok; trial++ {
@@ -127,8 +120,7 @@ func (self *Client) getUsablePacketID() (uint16, error) {
 	return id, nil
 }
 
-func (self *Client) setPreviousSession(prevSession *Client) {
-	self.SubTopics = prevSession.SubTopics
+func (self *ClientInfo) setPreviousSession(prevSession *ClientInfo) {
 	self.PacketIDMap = prevSession.PacketIDMap
 	self.CleanSession = prevSession.CleanSession
 	self.Will = prevSession.Will
@@ -200,9 +192,6 @@ func (self *Client) Subscribe(topics []*SubscribeTopic) error {
 		}
 	}
 	err = self.SendMessage(NewSubscribeMessage(id, topics))
-	if err == nil {
-		self.SubTopics = append(self.SubTopics, topics...)
-	}
 	return err
 }
 
@@ -250,7 +239,7 @@ func (self *Client) Disconnect() error {
 	return err
 }
 
-func (self *Client) disconnectProcessing() (err error) {
+func (self *ClientInfo) disconnectProcessing() (err error) {
 	// TODO: this might be not good way to close channel only once
 	if self.IsConnecting {
 		self.IsConnecting = false
@@ -266,7 +255,7 @@ func (self *Client) disconnectProcessing() (err error) {
 	return err
 }
 
-func (self *Client) AckMessage(id uint16) error {
+func (self *ClientInfo) AckMessage(id uint16) error {
 	_, ok := self.PacketIDMap[id]
 	if !ok {
 		return PACKET_ID_DOES_NOT_EXIST
@@ -275,7 +264,7 @@ func (self *Client) AckMessage(id uint16) error {
 	return nil
 }
 
-func (self *Client) Redelivery() (err error) {
+func (self *ClientInfo) Redelivery() (err error) {
 	if !self.CleanSession && len(self.PacketIDMap) > 0 {
 		for _, v := range self.PacketIDMap {
 			switch m := v.(type) {
@@ -407,7 +396,7 @@ func (self *Client) recvDisconnectMessage(m *DisconnectMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *Client) ReadMessage() {
+func (self *ClientInfo) ReadMessage() {
 	for {
 		m, err := self.Ct.ReadMessage()
 		// the condition below is not cool
