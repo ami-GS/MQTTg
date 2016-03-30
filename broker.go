@@ -46,8 +46,10 @@ func (self *Broker) Start() error {
 		clientInfo.Ct = &Transport{conn}
 		clientInfo.Broker = self
 		clientInfo.ReadChan = make(chan Message)
+		clientInfo.WriteChan = make(chan Message)
 		bc := &BrokerSideClient{clientInfo, make([]*SubscribeTopic, 0)}
 		go bc.ReadMessage()
+		go bc.WriteLoop()
 		go ReadLoop(bc, bc.ReadChan)
 	}
 }
@@ -71,7 +73,8 @@ func (self *Broker) DisconnectFromBroker(c *ClientInfo) {
 					panic(err)
 				}
 			}
-			subscriber.SendMessage(NewPublishMessage(false, w.QoS, w.Retain, w.Topic, id, []uint8(w.Message)))
+			pub := NewPublishMessage(false, w.QoS, w.Retain, w.Topic, id, []uint8(w.Message))
+			subscriber.WriteChan <- pub
 		}
 	}
 	self.disconnectProcessing(c)
@@ -163,7 +166,8 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		go self.RunClientTimer()
 	}
 	self.IsConnecting = true
-	err = self.SendMessage(NewConnackMessage(sessionPresent, Accepted))
+	connack := NewConnackMessage(sessionPresent, Accepted)
+	self.WriteChan <- connack
 	self.Redelivery()
 	return err
 }
@@ -204,7 +208,8 @@ func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) 
 				panic(err)
 			}
 		}
-		subscriber.SendMessage(NewPublishMessage(false, qos, false, m.TopicName, id, m.Payload))
+		pub := NewPublishMessage(false, qos, false, m.TopicName, id, m.Payload)
+		subscriber.WriteChan <- pub
 	}
 
 	switch m.QoS {
@@ -214,9 +219,11 @@ func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) 
 			return PACKET_ID_SHOULD_BE_ZERO
 		}
 	case 1:
-		err = self.SendMessage(NewPubackMessage(m.PacketID))
+		puback := NewPubackMessage(m.PacketID)
+		self.WriteChan <- puback
 	case 2:
-		err = self.SendMessage(NewPubrecMessage(m.PacketID))
+		pubrec := NewPubrecMessage(m.PacketID)
+		self.WriteChan <- pubrec
 	}
 	return err
 }
@@ -235,7 +242,8 @@ func (self *BrokerSideClient) recvPubrecMessage(m *PubrecMessage) (err error) {
 	if err != nil {
 		return err
 	}
-	err = self.SendMessage(NewPubrelMessage(m.PacketID))
+	pubrel := NewPubrelMessage(m.PacketID)
+	self.WriteChan <- pubrel
 	return err
 }
 
@@ -245,7 +253,8 @@ func (self *BrokerSideClient) recvPubrelMessage(m *PubrelMessage) (err error) {
 	if err != nil {
 		return err
 	}
-	err = self.SendMessage(NewPubcompMessage(m.PacketID))
+	pubcomp := NewPubcompMessage(m.PacketID)
+	self.WriteChan <- pubcomp
 	return err
 }
 
@@ -285,7 +294,8 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 							return err
 						}
 					}
-					err = self.SendMessage(NewPublishMessage(false, edge.RetainQoS, true, edge.FullPath, id, []uint8(edge.RetainMessage)))
+					pub := NewPublishMessage(false, edge.RetainQoS, true, edge.FullPath, id, []uint8(edge.RetainMessage))
+					self.WriteChan <- pub
 					EmitError(err)
 				}
 			}
@@ -293,7 +303,8 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 		returnCodes = append(returnCodes, codes...)
 	}
 	// TODO: check whether the number of return codes are correct?
-	err = self.SendMessage(NewSubackMessage(m.PacketID, returnCodes))
+	suback := NewSubackMessage(m.PacketID, returnCodes)
+	self.WriteChan <- suback
 	return err
 }
 
@@ -322,7 +333,9 @@ func (self *BrokerSideClient) recvUnsubscribeMessage(m *UnsubscribeMessage) (err
 		}
 	}
 	self.SubTopics = result
-	err = self.SendMessage(NewUnsubackMessage(m.PacketID))
+	unsuback := NewUnsubackMessage(m.PacketID)
+
+	self.WriteChan <- unsuback
 	return err
 }
 func (self *BrokerSideClient) recvUnsubackMessage(m *UnsubackMessage) (err error) {
@@ -333,10 +346,8 @@ func (self *BrokerSideClient) recvPingreqMessage(m *PingreqMessage) (err error) 
 	// Pingresp
 	// TODO: calc elapsed time from previous pingreq.
 	//       and store the time to duration of Transport
-	err = self.SendMessage(NewPingrespMessage())
-	if err != nil {
-		return err
-	}
+	pingresp := NewPingrespMessage()
+	self.WriteChan <- pingresp
 	if self.KeepAlive != 0 {
 		self.ResetTimer()
 		go self.RunClientTimer()

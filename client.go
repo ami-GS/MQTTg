@@ -33,6 +33,7 @@ type ClientInfo struct {
 	Duration       time.Duration
 	LoopQuit       chan bool
 	ReadChan       chan Message
+	WriteChan      chan Message
 	Broker         *Broker
 }
 
@@ -56,6 +57,7 @@ func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
 			Duration:       0,
 			LoopQuit:       nil,
 			ReadChan:       nil,
+			WriteChan:      nil,
 		},
 	}
 }
@@ -69,7 +71,7 @@ func (self *Client) StartPingLoop() {
 	for {
 		select {
 		case <-t.C:
-			EmitError(self.keepAlive())
+			self.keepAlive()
 		case <-self.LoopQuit:
 			t.Stop()
 			return
@@ -79,32 +81,36 @@ func (self *Client) StartPingLoop() {
 
 }
 
-func (self *ClientInfo) SendMessage(m Message) error {
-	if !self.IsConnecting {
-		return NOT_CONNECTED
-	}
-	id := m.GetPacketID()
-	_, ok := self.PacketIDMap[id]
-	if ok {
-		return PACKET_ID_IS_USED_ALREADY
-	}
-
-	err := self.Ct.SendMessage(m)
-	if err == nil {
-		switch m.(type) {
-		case *PublishMessage:
-			if id > 0 {
+func (self *ClientInfo) WriteLoop() (err error) {
+	for m := range self.WriteChan {
+		if !self.IsConnecting {
+			return NOT_CONNECTED
+		}
+		id := m.GetPacketID()
+		_, ok := self.PacketIDMap[id]
+		if ok {
+			return PACKET_ID_IS_USED_ALREADY
+		}
+		err = self.Ct.SendMessage(m)
+		if err == nil {
+			switch m.(type) {
+			case *PublishMessage:
+				if id > 0 {
+					self.PacketIDMap[id] = m
+				}
+			case *PubrecMessage, *PubrelMessage, *SubscribeMessage, *UnsubscribeMessage:
+				if id == 0 {
+					return PACKET_ID_SHOULD_NOT_BE_ZERO
+				}
 				self.PacketIDMap[id] = m
 			}
-		case *PubrecMessage, *PubrelMessage, *SubscribeMessage, *UnsubscribeMessage:
-			if id == 0 {
-				return PACKET_ID_SHOULD_NOT_BE_ZERO
-			}
-			self.PacketIDMap[id] = m
+		}
+		if err != nil {
+			EmitError(err)
+			return err
 		}
 	}
-
-	return err
+	return
 }
 
 func (self *ClientInfo) getUsablePacketID() (uint16, error) {
@@ -146,8 +152,10 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	self.Ct = t
 	self.LoopQuit = make(chan bool)
 	self.ReadChan = make(chan Message)
+	self.WriteChan = make(chan Message)
 	self.CleanSession = cleanSession
 	go self.ReadMessage()
+	go self.WriteLoop()
 	go ReadLoop(self, self.ReadChan)
 	// below can avoid first IsConnecting validation
 	err = self.Ct.SendMessage(NewConnectMessage(self.KeepAlive,
@@ -171,8 +179,8 @@ func (self *Client) Publish(topic, data string, qos uint8, retain bool) (err err
 		}
 	}
 
-	err = self.SendMessage(NewPublishMessage(false, qos, retain,
-		topic, id, []uint8(data)))
+	pub := NewPublishMessage(false, qos, retain, topic, id, []uint8(data))
+	self.WriteChan <- pub
 	return err
 }
 
@@ -191,7 +199,8 @@ func (self *Client) Subscribe(topics []*SubscribeTopic) error {
 			}
 		}
 	}
-	err = self.SendMessage(NewSubscribeMessage(id, topics))
+	sub := NewSubscribeMessage(id, topics)
+	self.WriteChan <- sub
 	return err
 }
 
@@ -211,32 +220,32 @@ func (self *Client) Unsubscribe(topics []string) error {
 	if err != nil {
 		return err
 	}
-	err = self.SendMessage(NewUnsubscribeMessage(id, topics))
+	unsub := NewUnsubscribeMessage(id, topics)
+	self.WriteChan <- unsub
 	return err
 }
 
-func (self *Client) keepAlive() error {
-	err := self.SendMessage(NewPingreqMessage())
-	if err == nil {
-		self.PingBegin = time.Now()
-	}
-	return err
+func (self *Client) keepAlive() {
+	ping := NewPingreqMessage()
+	self.WriteChan <- ping
+	// TODO: ping begin should be start if the delivery is nicely done?
+	/*
+		if err == nil {
+			self.PingBegin = time.Now()
+		}
+	*/
 }
 
-func (self *Client) Disconnect() error {
-	err := self.SendMessage(NewDisconnectMessage())
-	if err != nil {
-		return err
-	}
+func (self *Client) Disconnect() {
+	discon := NewDisconnectMessage()
+	self.WriteChan <- discon
 
 	go func() {
 		// wait broker side detect the DisconnectMessage
 		// for further Will message delivery
 		time.Sleep(self.Duration * 2)
-		err = self.disconnectProcessing()
+		self.disconnectProcessing()
 	}()
-
-	return err
 }
 
 func (self *ClientInfo) disconnectProcessing() (err error) {
@@ -264,21 +273,19 @@ func (self *ClientInfo) AckMessage(id uint16) error {
 	return nil
 }
 
-func (self *ClientInfo) Redelivery() (err error) {
+func (self *ClientInfo) Redelivery() {
 	if !self.CleanSession && len(self.PacketIDMap) > 0 {
 		for _, v := range self.PacketIDMap {
 			switch m := v.(type) {
 			case *PublishMessage:
 				// Only Publish Message's DUP is set
 				m.Dup = true
-				err = self.SendMessage(m)
+				self.WriteChan <- m
 			default:
-				err = self.SendMessage(v)
+				self.WriteChan <- v
 			}
-			EmitError(err)
 		}
 	}
-	return err
 }
 
 func (self *Client) recvConnectMessage(m *ConnectMessage) (err error) {
@@ -316,9 +323,11 @@ func (self *Client) recvPublishMessage(m *PublishMessage) (err error) {
 			return PACKET_ID_SHOULD_BE_ZERO
 		}
 	case 1:
-		err = self.SendMessage(NewPubackMessage(m.PacketID))
+		puback := NewPubackMessage(m.PacketID)
+		self.WriteChan <- puback
 	case 2:
-		err = self.SendMessage(NewPubrecMessage(m.PacketID))
+		pubrec := NewPubrecMessage(m.PacketID)
+		self.WriteChan <- pubrec
 	}
 	return err
 }
@@ -337,7 +346,8 @@ func (self *Client) recvPubrecMessage(m *PubrecMessage) (err error) {
 	if err != nil {
 		return err
 	}
-	err = self.SendMessage(NewPubrelMessage(m.PacketID))
+	pubrel := NewPubrelMessage(m.PacketID)
+	self.WriteChan <- pubrel
 	return err
 }
 
@@ -347,7 +357,8 @@ func (self *Client) recvPubrelMessage(m *PubrelMessage) (err error) {
 	if err != nil {
 		return err
 	}
-	err = self.SendMessage(NewPubcompMessage(m.PacketID))
+	pubcomp := NewPubcompMessage(m.PacketID)
+	self.WriteChan <- pubcomp
 	return err
 }
 
@@ -387,7 +398,8 @@ func (self *Client) recvPingrespMessage(m *PingrespMessage) (err error) {
 	}
 	if self.Duration.Seconds() >= float64(self.KeepAlive) {
 		// TODO: this must be 'reasonable amount of time'
-		err = self.SendMessage(NewDisconnectMessage())
+		discon := NewDisconnectMessage()
+		self.WriteChan <- discon
 	}
 	return err
 }
