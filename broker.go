@@ -1,6 +1,7 @@
 package MQTTg
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"time"
@@ -15,6 +16,7 @@ type Broker struct {
 
 func (self *Broker) Start() error {
 	addr, err := GetLocalAddr()
+	fmt.Println(addr)
 	if err != nil {
 		return err
 	}
@@ -48,9 +50,9 @@ func (self *Broker) Start() error {
 		clientInfo.ReadChan = make(chan Message)
 		clientInfo.WriteChan = make(chan Message)
 		bc := &BrokerSideClient{clientInfo, make([]*SubscribeTopic, 0)}
+		go bc.ReadLoop(bc) // TODO: use single Loop function
 		go bc.ReadMessage()
 		go bc.WriteLoop()
-		go ReadLoop(bc, bc.ReadChan)
 	}
 }
 

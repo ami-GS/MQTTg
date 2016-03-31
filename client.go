@@ -81,6 +81,45 @@ func (self *Client) StartPingLoop() {
 
 }
 
+func (self *ClientInfo) ReadLoop(edge Edge) (err error) {
+	for m := range self.ReadChan {
+		if m != nil {
+			switch m := m.(type) {
+			case *ConnectMessage:
+				err = edge.recvConnectMessage(m)
+			case *ConnackMessage:
+				err = edge.recvConnackMessage(m)
+			case *PublishMessage:
+				err = edge.recvPublishMessage(m)
+			case *PubackMessage:
+				err = edge.recvPubackMessage(m)
+			case *PubrecMessage:
+				err = edge.recvPubrecMessage(m)
+			case *PubrelMessage:
+				err = edge.recvPubrelMessage(m)
+			case *PubcompMessage:
+				err = edge.recvPubcompMessage(m)
+			case *SubscribeMessage:
+				err = edge.recvSubscribeMessage(m)
+			case *SubackMessage:
+				err = edge.recvSubackMessage(m)
+			case *UnsubscribeMessage:
+				err = edge.recvUnsubscribeMessage(m)
+			case *UnsubackMessage:
+				err = edge.recvUnsubackMessage(m)
+			case *PingreqMessage:
+				err = edge.recvPingreqMessage(m)
+			case *PingrespMessage:
+				err = edge.recvPingrespMessage(m)
+			case *DisconnectMessage:
+				err = edge.recvDisconnectMessage(m)
+			}
+		}
+		EmitError(err)
+	}
+	return
+}
+
 func (self *ClientInfo) WriteLoop() (err error) {
 	for m := range self.WriteChan {
 		if !self.IsConnecting {
@@ -154,9 +193,9 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	self.ReadChan = make(chan Message)
 	self.WriteChan = make(chan Message)
 	self.CleanSession = cleanSession
+	go self.ReadLoop(self) // TODO: use single Loop function
 	go self.ReadMessage()
 	go self.WriteLoop()
-	go ReadLoop(self, self.ReadChan)
 	// below can avoid first IsConnecting validation
 	err = self.Ct.SendMessage(NewConnectMessage(self.KeepAlive,
 		self.ID, cleanSession, self.Will, self.User))
