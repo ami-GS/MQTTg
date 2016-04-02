@@ -287,19 +287,23 @@ func (self *Client) Disconnect() {
 	}()
 }
 
-func (self *ClientInfo) disconnectProcessing() (err error) {
-	// TODO: this might be not good way to close channel only once
+func (self *ClientInfo) disconnectBase() (err error) {
+	close(self.ReadChan)
+	close(self.WriteChan)
 	if self.IsConnecting {
 		self.IsConnecting = false
 		self.Will = nil
-		close(self.ReadChan)
-		if self.Broker == nil {
-			self.LoopQuit <- true // for client side
-			close(self.LoopQuit)
-		}
 	}
-	// this is for ConnectMessage rejection
 	err = self.Ct.conn.Close()
+	return err
+}
+
+func (self *Client) disconnectProcessing() (err error) {
+	if self.IsConnecting {
+		self.LoopQuit <- true // for client side
+		close(self.LoopQuit)
+	}
+	err = self.disconnectBase()
 	return err
 }
 
@@ -447,26 +451,14 @@ func (self *Client) recvDisconnectMessage(m *DisconnectMessage) (err error) {
 	return INVALID_MESSAGE_CAME
 }
 
-func (self *ClientInfo) ReadMessage() {
+func (self *Client) ReadMessage() {
 	for {
 		m, err := self.Ct.ReadMessage()
 		// the condition below is not cool
 		if err == io.EOF {
-			// when disconnect from broker
-			// TODO: currently BrokerSideClient are
-			//       disconnected by KeepAliveTimer
-			if self.Broker != nil {
-				self.Broker.DisconnectFromBroker(self)
-			} else {
-				err = self.disconnectProcessing()
-			}
-			EmitError(err)
-			return
-		} else if err != nil {
-			// when disconnect from client
+			EmitError(self.disconnectProcessing())
 			return
 		}
-		EmitError(err)
 		if m != nil {
 			self.ReadChan <- m
 		}

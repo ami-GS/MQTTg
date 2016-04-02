@@ -2,6 +2,7 @@ package MQTTg
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"time"
@@ -56,16 +57,17 @@ func (self *Broker) Start() error {
 	}
 }
 
-func (self *Broker) DisconnectFromBroker(c *ClientInfo) {
-	w := c.Will
+func (self *BrokerSideClient) disconnectProcessing() (err error) {
+	w := self.Will
 	if w != nil {
+		broker := self.Broker
 		if w.Retain {
-			self.TopicRoot.ApplyRetain(w.Topic, w.QoS, w.Message)
+			broker.TopicRoot.ApplyRetain(w.Topic, w.QoS, w.Message)
 		}
-		nodes, _ := self.TopicRoot.GetTopicNodes(w.Topic, true)
+		nodes, _ := broker.TopicRoot.GetTopicNodes(w.Topic, true)
 		for subscriberID, _ := range nodes[0].Subscribers {
 			// TODO: check which qos should be used, Will.QoS or requested QoS
-			subscriber, _ := self.Clients[subscriberID]
+			subscriber, _ := broker.Clients[subscriberID]
 
 			var id uint16 = 0
 			var err error
@@ -79,16 +81,14 @@ func (self *Broker) DisconnectFromBroker(c *ClientInfo) {
 			subscriber.WriteChan <- pub
 		}
 	}
-	self.disconnectProcessing(c)
-}
-
-func (self *Broker) disconnectProcessing(c *ClientInfo) (err error) {
-	c.KeepAliveTimer.Stop()
-	err = c.disconnectProcessing()
-	if c.CleanSession {
-		delete(self.Clients, c.ID)
+	if self.IsConnecting {
+		self.KeepAliveTimer.Stop()
+		if self.CleanSession {
+			delete(self.Broker.Clients, self.ID)
+		}
 	}
-	return
+	err = self.disconnectBase()
+	return err
 }
 
 func (self *Broker) ApplyDummyClientID() string {
@@ -103,7 +103,7 @@ type BrokerSideClient struct {
 func (self *BrokerSideClient) RunClientTimer() {
 	<-self.KeepAliveTimer.C
 	EmitError(CLIENT_TIMED_OUT)
-	self.Broker.DisconnectFromBroker(self.ClientInfo)
+	self.disconnectProcessing()
 	// TODO: logging?
 }
 
@@ -362,7 +362,26 @@ func (self *BrokerSideClient) recvPingrespMessage(m *PingrespMessage) (err error
 }
 
 func (self *BrokerSideClient) recvDisconnectMessage(m *DisconnectMessage) (err error) {
-	self.Broker.disconnectProcessing(self.ClientInfo)
+	self.Will = nil
+	self.disconnectProcessing()
 	// close the client
 	return err
+}
+
+func (self *BrokerSideClient) ReadMessage() {
+	for {
+		m, err := self.Ct.ReadMessage()
+		EmitError(err)
+		// the condition below is not cool
+		if err == io.EOF {
+			EmitError(self.disconnectProcessing())
+			return
+		} else if err != nil {
+			// when disconnect from client
+			return
+		}
+		if m != nil {
+			self.ReadChan <- m
+		}
+	}
 }
