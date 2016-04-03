@@ -2,7 +2,6 @@ package MQTTg
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 	"time"
@@ -52,7 +51,6 @@ func (self *Broker) Start() error {
 		clientInfo.WriteChan = make(chan Message)
 		bc := &BrokerSideClient{clientInfo, make([]*SubscribeTopic, 0)}
 		go bc.ReadLoop(bc) // TODO: use single Loop function
-		go bc.ReadMessage()
 		go bc.WriteLoop()
 	}
 }
@@ -366,22 +364,4 @@ func (self *BrokerSideClient) recvDisconnectMessage(m *DisconnectMessage) (err e
 	self.disconnectProcessing()
 	// close the client
 	return err
-}
-
-func (self *BrokerSideClient) ReadMessage() {
-	for {
-		m, err := self.Ct.ReadMessage()
-		EmitError(err)
-		// the condition below is not cool
-		if err == io.EOF {
-			EmitError(self.disconnectProcessing())
-			return
-		} else if err != nil {
-			// when disconnect from client
-			return
-		}
-		if m != nil {
-			self.ReadChan <- m
-		}
-	}
 }

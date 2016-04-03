@@ -15,4 +15,5 @@ type Edge interface {
 	recvPingreqMessage(*PingreqMessage) error
 	recvPingrespMessage(*PingrespMessage) error
 	recvDisconnectMessage(*DisconnectMessage) error
+	disconnectProcessing() error
 }

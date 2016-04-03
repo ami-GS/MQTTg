@@ -82,7 +82,16 @@ func (self *Client) StartPingLoop() {
 }
 
 func (self *ClientInfo) ReadLoop(edge Edge) (err error) {
-	for m := range self.ReadChan {
+	for {
+		m, err := self.Ct.ReadMessage()
+		EmitError(err)
+		if err == io.EOF {
+			EmitError(edge.disconnectProcessing())
+			return err
+		} else if err != nil {
+			// ?
+			return err
+		}
 		if m != nil {
 			switch m := m.(type) {
 			case *ConnectMessage:
@@ -194,7 +203,6 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 	self.WriteChan = make(chan Message)
 	self.CleanSession = cleanSession
 	go self.ReadLoop(self) // TODO: use single Loop function
-	go self.ReadMessage()
 	go self.WriteLoop()
 	// below can avoid first IsConnecting validation
 	err = self.Ct.SendMessage(NewConnectMessage(self.KeepAlive,
@@ -449,18 +457,4 @@ func (self *Client) recvPingrespMessage(m *PingrespMessage) (err error) {
 
 func (self *Client) recvDisconnectMessage(m *DisconnectMessage) (err error) {
 	return INVALID_MESSAGE_CAME
-}
-
-func (self *Client) ReadMessage() {
-	for {
-		m, err := self.Ct.ReadMessage()
-		// the condition below is not cool
-		if err == io.EOF {
-			EmitError(self.disconnectProcessing())
-			return
-		}
-		if m != nil {
-			self.ReadChan <- m
-		}
-	}
 }
