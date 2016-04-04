@@ -33,21 +33,23 @@ func (self *Broker) Start() error {
 			EmitError(err)
 			continue
 		}
-		clientInfo := &ClientInfo{
-			IsConnecting:   false,
-			ID:             "",
-			User:           nil,
-			KeepAlive:      0,
-			Will:           nil,
-			PacketIDMap:    make(map[uint16]Message, 0),
-			CleanSession:   false,
-			KeepAliveTimer: time.NewTimer(0),
-			Duration:       0,
-			WriteChan:      make(chan Message),
+		bc := &BrokerSideClient{
+			ClientInfo: &ClientInfo{
+				Ct:             &Transport{conn},
+				IsConnecting:   false,
+				ID:             "",
+				User:           nil,
+				KeepAlive:      0,
+				Will:           nil,
+				PacketIDMap:    make(map[uint16]Message, 0),
+				CleanSession:   false,
+				KeepAliveTimer: time.NewTimer(0),
+				Duration:       0,
+				WriteChan:      make(chan Message),
+				Broker:         self,
+			},
+			SubTopics: make([]*SubscribeTopic, 0),
 		}
-		clientInfo.Ct = &Transport{conn}
-		clientInfo.Broker = self
-		bc := &BrokerSideClient{clientInfo, make([]*SubscribeTopic, 0)}
 		go bc.ReadLoop(bc) // TODO: use single Loop function
 		go bc.WriteLoop()
 	}
