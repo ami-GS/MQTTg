@@ -43,12 +43,10 @@ func (self *Broker) Start() error {
 			CleanSession:   false,
 			KeepAliveTimer: time.NewTimer(0),
 			Duration:       0,
-			ReadChan:       nil,
+			WriteChan:      make(chan Message),
 		}
 		clientInfo.Ct = &Transport{conn}
 		clientInfo.Broker = self
-		clientInfo.ReadChan = make(chan Message)
-		clientInfo.WriteChan = make(chan Message)
 		bc := &BrokerSideClient{clientInfo, make([]*SubscribeTopic, 0)}
 		go bc.ReadLoop(bc) // TODO: use single Loop function
 		go bc.WriteLoop()

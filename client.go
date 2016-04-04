@@ -32,7 +32,6 @@ type ClientInfo struct {
 	KeepAliveTimer *time.Timer
 	Duration       time.Duration
 	LoopQuit       chan bool
-	ReadChan       chan Message
 	WriteChan      chan Message
 	Broker         *Broker
 }
@@ -56,7 +55,6 @@ func NewClient(id string, user *User, keepAlive uint16, will *Will) *Client {
 			KeepAliveTimer: time.NewTimer(0),
 			Duration:       0,
 			LoopQuit:       nil,
-			ReadChan:       nil,
 			WriteChan:      nil,
 		},
 	}
@@ -199,7 +197,6 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 
 	self.Ct = t
 	self.LoopQuit = make(chan bool)
-	self.ReadChan = make(chan Message)
 	self.WriteChan = make(chan Message)
 	self.CleanSession = cleanSession
 	go self.ReadLoop(self) // TODO: use single Loop function
@@ -296,7 +293,6 @@ func (self *Client) Disconnect() {
 }
 
 func (self *ClientInfo) disconnectBase() (err error) {
-	close(self.ReadChan)
 	close(self.WriteChan)
 	if self.IsConnecting {
 		self.IsConnecting = false
