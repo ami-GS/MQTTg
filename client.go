@@ -33,7 +33,6 @@ type ClientInfo struct {
 	Duration       time.Duration
 	LoopQuit       chan bool
 	WriteChan      chan Message
-	Broker         *Broker
 }
 
 type Client struct {

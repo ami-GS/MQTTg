@@ -46,9 +46,9 @@ func (self *Broker) Start() error {
 				KeepAliveTimer: time.NewTimer(0),
 				Duration:       0,
 				WriteChan:      make(chan Message),
-				Broker:         self,
 			},
 			SubTopics: make([]*SubscribeTopic, 0),
+			Broker:    self,
 		}
 		go bc.ReadLoop(bc) // TODO: use single Loop function
 		go bc.WriteLoop()
@@ -96,6 +96,7 @@ func (self *Broker) ApplyDummyClientID() string {
 type BrokerSideClient struct {
 	*ClientInfo
 	SubTopics []*SubscribeTopic
+	Broker    *Broker
 }
 
 func (self *BrokerSideClient) RunClientTimer() {
