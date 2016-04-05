@@ -57,8 +57,8 @@ func (self *Broker) Start() error {
 
 func (self *BrokerSideClient) disconnectProcessing() (err error) {
 	w := self.Will
+	broker := self.Broker
 	if w != nil {
-		broker := self.Broker
 		if w.Retain {
 			broker.TopicRoot.ApplyRetain(w.Topic, w.QoS, w.Message)
 		}
@@ -82,7 +82,7 @@ func (self *BrokerSideClient) disconnectProcessing() (err error) {
 	if self.IsConnecting {
 		self.KeepAliveTimer.Stop()
 		if self.CleanSession {
-			delete(self.Broker.Clients, self.ID)
+			delete(broker.Clients, self.ID)
 		}
 	}
 	err = self.disconnectBase()
