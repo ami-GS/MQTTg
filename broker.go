@@ -33,23 +33,7 @@ func (self *Broker) Start() error {
 			EmitError(err)
 			continue
 		}
-		bc := &BrokerSideClient{
-			ClientInfo: &ClientInfo{
-				Ct:             &Transport{conn},
-				IsConnecting:   false,
-				ID:             "",
-				User:           nil,
-				KeepAlive:      0,
-				Will:           nil,
-				PacketIDMap:    make(map[uint16]Message, 0),
-				CleanSession:   false,
-				KeepAliveTimer: time.NewTimer(0),
-				Duration:       0,
-				WriteChan:      make(chan Message),
-			},
-			SubTopics: make([]*SubscribeTopic, 0),
-			Broker:    self,
-		}
+		bc := NewBrokerSideClient(&Transport{conn}, self)
 		go bc.ReadLoop(bc) // TODO: use single Loop function
 		go bc.WriteLoop()
 	}
@@ -97,6 +81,26 @@ type BrokerSideClient struct {
 	*ClientInfo
 	SubTopics []*SubscribeTopic
 	Broker    *Broker
+}
+
+func NewBrokerSideClient(ct *Transport, broker *Broker) *BrokerSideClient {
+	return &BrokerSideClient{
+		ClientInfo: &ClientInfo{
+			Ct:             ct,
+			IsConnecting:   false,
+			ID:             "",
+			User:           nil,
+			KeepAlive:      0,
+			Will:           nil,
+			PacketIDMap:    make(map[uint16]Message, 0),
+			CleanSession:   false,
+			KeepAliveTimer: time.NewTimer(0),
+			Duration:       0,
+			WriteChan:      make(chan Message),
+		},
+		SubTopics: make([]*SubscribeTopic, 0),
+		Broker:    broker,
+	}
 }
 
 func (self *BrokerSideClient) RunClientTimer() {
