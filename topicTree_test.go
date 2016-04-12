@@ -20,6 +20,7 @@ func TestGetTopicNodes(t *testing.T) {
 		make(map[string]*TopicNode),
 		"",
 		"",
+		"",
 		0,
 		make(map[string]uint8),
 	}

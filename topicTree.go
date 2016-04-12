@@ -6,6 +6,7 @@ import (
 
 type TopicNode struct {
 	Nodes         map[string]*TopicNode
+	Name          string
 	FullPath      string
 	RetainMessage string
 	RetainQoS     uint8
@@ -118,6 +119,7 @@ func (self *TopicNode) ApplyRetain(topic string, qos uint8, retain string) error
 func (self *TopicNode) ApplyNewTopic(topic, fullPath string) {
 	self.Nodes[topic] = &TopicNode{
 		Nodes:         make(map[string]*TopicNode),
+		Name:          topic,
 		FullPath:      fullPath,
 		RetainMessage: "",
 		RetainQoS:     0,
@@ -133,5 +135,17 @@ func (self *TopicNode) DumpTree() (str string) {
 		str += v.DumpTree()
 	}
 	return str
+}
 
+func (self *TopicNode) DumpTree2() (str []string) {
+	if len(self.Nodes) == 0 {
+		return []string{self.Name}
+	}
+	for _, node := range self.Nodes {
+		deepStrs := node.DumpTree2()
+		for _, s := range deepStrs {
+			str = append(str, self.Name+"/"+s)
+		}
+	}
+	return str
 }
