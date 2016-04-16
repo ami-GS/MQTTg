@@ -171,17 +171,6 @@ func (self *ClientInfo) getUsablePacketID() (uint16, error) {
 	return id, nil
 }
 
-func (self *ClientInfo) setPreviousSession(prevSession *ClientInfo) {
-	self.PacketIDMap = prevSession.PacketIDMap
-	self.CleanSession = prevSession.CleanSession
-	self.Will = prevSession.Will
-	self.Duration = prevSession.Duration
-	self.KeepAliveTimer = time.NewTimer(self.Duration)
-	self.KeepAlive = prevSession.KeepAlive
-	// TODO: authorize here
-	self.User = prevSession.User
-}
-
 func (self *Client) Connect(addPair string, cleanSession bool) error {
 	if len(self.ID) == 0 && !cleanSession {
 		// TODO: here should be warnning

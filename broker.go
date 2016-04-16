@@ -10,7 +10,7 @@ import (
 type Broker struct {
 	MyAddr *net.TCPAddr
 	// TODO: check whether not good to use addr as key
-	Clients   map[string]*ClientInfo //map[clientID]*ClientInfo
+	Clients   map[string]*BrokerSideClient //map[clientID]*BrokerSideClient
 	TopicRoot *TopicNode
 }
 
@@ -110,6 +110,19 @@ func (self *BrokerSideClient) RunClientTimer() {
 	// TODO: logging?
 }
 
+func (self *BrokerSideClient) setPreviousSession(prevSession *BrokerSideClient) {
+	self.SubTopics = prevSession.SubTopics
+
+	self.PacketIDMap = prevSession.PacketIDMap
+	self.CleanSession = prevSession.CleanSession
+	self.Will = prevSession.Will
+	self.Duration = prevSession.Duration
+	self.KeepAliveTimer = time.NewTimer(self.Duration)
+	self.KeepAlive = prevSession.KeepAlive
+	// TODO: authorize here
+	self.User = prevSession.User
+}
+
 func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) {
 	// NOTICE: when connection error is sent to client, self.Ct.SendMessage()
 	//         should be used for avoiding Isconnecting validation
@@ -158,7 +171,7 @@ func (self *BrokerSideClient) recvConnectMessage(m *ConnectMessage) (err error) 
 		self.KeepAliveTimer = time.NewTimer(self.Duration)
 		sessionPresent = false
 	}
-	self.Broker.Clients[m.ClientID] = self.ClientInfo
+	self.Broker.Clients[m.ClientID] = self
 
 	if m.Flags&Will_Flag == Will_Flag {
 		self.Will = m.Will
