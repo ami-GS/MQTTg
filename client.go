@@ -78,6 +78,24 @@ func (self *Client) StartPingLoop() {
 
 }
 
+type Edge interface {
+	recvConnectMessage(*ConnectMessage) error
+	recvConnackMessage(*ConnackMessage) error
+	recvPublishMessage(*PublishMessage) error
+	recvPubackMessage(*PubackMessage) error
+	recvPubrecMessage(*PubrecMessage) error
+	recvPubrelMessage(*PubrelMessage) error
+	recvPubcompMessage(*PubcompMessage) error
+	recvSubscribeMessage(*SubscribeMessage) error
+	recvSubackMessage(*SubackMessage) error
+	recvUnsubscribeMessage(*UnsubscribeMessage) error
+	recvUnsubackMessage(*UnsubackMessage) error
+	recvPingreqMessage(*PingreqMessage) error
+	recvPingrespMessage(*PingrespMessage) error
+	recvDisconnectMessage(*DisconnectMessage) error
+	disconnectProcessing() error
+}
+
 func (self *ClientInfo) ReadLoop(edge Edge) (err error) {
 	for {
 		m, err := self.Ct.ReadMessage()
