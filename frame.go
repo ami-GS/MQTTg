@@ -28,7 +28,7 @@ const (
 )
 
 func (self MessageType) String() string {
-	types := []string{
+	return []string{
 		"Reserved_1",
 		"Connect",
 		"Connack",
@@ -45,8 +45,7 @@ func (self MessageType) String() string {
 		"Pingresp",
 		"Disconnect",
 		"Reserved_2",
-	}
-	return types[int(self)]
+	}[int(self)]
 }
 
 func ReadFrame(wire []byte) (Message, error) {
@@ -405,15 +404,14 @@ const (
 )
 
 func (self ConnectReturnCode) String() string {
-	codes := []string{
+	return []string{
 		"Accepted",
 		"UnacceptableProtocolVersion",
 		"IdentifierRejected",
 		"ServerUnavailable",
 		"BadUserNameOrPassword",
 		"NotAuthorized",
-	}
-	return codes[int(self)]
+	}[int(self)]
 }
 
 func (self ConnectReturnCode) Error() string {
@@ -808,13 +806,12 @@ const (
 )
 
 func (self SubscribeReturnCode) String() string {
-	codes := map[SubscribeReturnCode]string{
+	return map[SubscribeReturnCode]string{
 		0x00: "AckMaxQoS0",
 		0x01: "AckMaxQoS1",
 		0x02: "AckMaxQoS2",
 		0x80: "SubscribeFailure",
-	}
-	return codes[self]
+	}[self]
 }
 
 type SubackMessage struct {

@@ -105,7 +105,7 @@ func EmitError(e error) {
 }
 
 func (e MQTT_ERROR) Error() string {
-	er_st := []string{
+	return []string{
 		"MALFORMED_REMAIN_LENGTH",
 		"MALFORMED_SUBSCRIBE_RESERVED_PART",
 		"MALFORMED_CONNECT_FLAG_BIT",
@@ -130,6 +130,5 @@ func (e MQTT_ERROR) Error() string {
 		"WILDCARD_CHARACTERS_IN_PUBLISH",
 		"FAIL_TO_SET_PACKET_ID",
 		"UNSUBSCRIBE_TO_NON_SUBSCRIBE_TOPIC",
-	}
-	return er_st[e]
+	}[e]
 }
