@@ -3,6 +3,7 @@ package MQTTg
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 )
 
@@ -12,9 +13,13 @@ func UTF8_encode(dst []uint8, s string) int {
 	return 2 + len(s)
 }
 
-func UTF8_decode(wire []uint8) (int, string) {
-	length := int(binary.BigEndian.Uint16(wire) + 2)
-	return length, string(wire[2:length])
+func UTF8_decode(r io.Reader, str *string) (len uint16) {
+	binary.Read(r, binary.BigEndian, len)
+	data := make([]byte, len)
+	binary.Read(r, binary.BigEndian, data)
+	*str = string(data)
+	len += 2
+	return len
 }
 
 func RemainEncode(dst []uint8, length uint32) int {
@@ -30,23 +35,24 @@ func RemainEncode(dst []uint8, length uint32) int {
 	return i
 }
 
-func RemainDecode(wire []byte) (uint32, int, error) {
+func RemainDecode(r io.Reader, remLen *uint32) (int, error) {
 	m := uint32(1)
-	out := uint32(0)
 	i := 0
+	var tmp byte
 	for ; ; i++ {
-		out += uint32(wire[i]&0x7f) * m
+		binary.Read(r, binary.BigEndian, tmp)
+		*remLen += uint32(tmp&0x7f) * m
 		m *= 0x80
 
-		if wire[i]&0x80 == 0 {
+		if tmp&0x80 == 0 {
 			break
 		}
 		if m > 2097152 {
-			return 0, 0, MALFORMED_REMAIN_LENGTH
+			return 0, MALFORMED_REMAIN_LENGTH
 			//TODO:error handling
 		}
 	}
-	return out, i + 1, nil
+	return i + 1, nil
 }
 
 func GetLocalAddr() (*net.TCPAddr, error) {

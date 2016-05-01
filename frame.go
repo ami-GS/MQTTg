@@ -3,6 +3,7 @@ package MQTTg
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -48,13 +49,13 @@ func (self MessageType) String() string {
 	}[int(self)]
 }
 
-func ReadFrame(wire []byte) (Message, error) {
+func ReadFrame(r io.Reader) (Message, error) {
 	// TODO: The argument should be considered (like io.Reader)
-	fh, fhLen, err := ParseFixedHeader(wire) // This causes error
+	fh, _, err := ParseFixedHeader(r) // This causes error
 	if err != nil {
 		return nil, err
 	}
-	ms, err := ParseMessage[fh.Type](fh, wire[fhLen:fhLen+int(fh.RemainLength)])
+	ms, err := ParseMessage[fh.Type](fh, r)
 	if err != nil {
 		return nil, err
 	}
@@ -113,36 +114,38 @@ func (self *FixedHeader) String() string {
 		ClFrames[self.Type].Apply(self.Type.String()), self.Dup, self.QoS, self.Retain, self.RemainLength)
 }
 
-func ParseFixedHeader(wire []byte) (*FixedHeader, int, error) {
-	mType := MessageType(wire[0] >> 4)
-	dup := wire[0]&0x08 == 0x08
-	qos := uint8((wire[0] >> 1) & 0x03)
-	retain := wire[0]&0x01 == 0x01
-	switch mType {
+func ParseFixedHeader(r io.Reader) (*FixedHeader, int, error) {
+	fh := &FixedHeader{}
+	var tmp byte
+	binary.Read(r, binary.BigEndian, &tmp)
+	fh.Type = MessageType(tmp >> 4)
+	fh.Dup = tmp&0x08 == 0x08
+	fh.QoS = byte((tmp >> 1) & 0x03)
+	fh.Retain = tmp&0x01 == 0x01
+	switch fh.Type {
 	case Pubrel, Subscribe, Unsubscribe:
-		if dup || retain || qos != 1 {
+		if fh.Dup || fh.Retain || fh.QoS != 1 {
 			return nil, 0, MALFORMED_FIXED_HEADER_RESERVED_BIT
 		}
 	case Publish:
-		if qos == 3 {
+		if fh.QoS == 3 {
 			return nil, 0, INVALID_QOS_3
 		}
 	default:
-		if dup || retain || qos != 0 {
+		if fh.Dup || fh.Retain || fh.QoS != 0 {
 			return nil, 0, MALFORMED_FIXED_HEADER_RESERVED_BIT
 		}
 	}
 
-	length, remainPartLen, err := RemainDecode(wire[1:])
+	length, err := RemainDecode(r, &fh.RemainLength)
 	if err != nil {
 		return nil, 0, err
 	}
-	h := NewFixedHeader(mType, dup, qos, retain, length, 0)
 
-	return h, remainPartLen + 1, nil
+	return fh, length + 1, nil
 }
 
-type FrameParser func(fh *FixedHeader, wire []byte) (Message, error)
+type FrameParser func(fh *FixedHeader, r io.Reader) (Message, error)
 
 var ParseMessage = map[MessageType]FrameParser{
 	Connect:     ParseConnectMessage,
@@ -334,49 +337,42 @@ func (self *ConnectMessage) GetWire() []byte {
 	return wire
 }
 
-func ParseConnectMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParseConnectMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &ConnectMessage{
 		FixedHeader: fh,
+		Protocol:    &Protocol{},
 	}
-	cursor, protoName := UTF8_decode(wire)
-	level := wire[cursor]
+	_ = UTF8_decode(r, &m.Protocol.Name)
 	// TODO: validate protocol version
-	m.Protocol = &Protocol{protoName, level}
-
-	m.Flags = ConnectFlag(wire[cursor+1])
+	binary.Read(r, binary.BigEndian, &m.Protocol.Level)
+	var tmp_f uint8
+	binary.Read(r, binary.BigEndian, &tmp_f)
+	m.Flags = ConnectFlag(tmp_f)
 	if m.Flags&Reserved_Flag == Reserved_Flag {
 		return nil, MALFORMED_CONNECT_FLAG_BIT
 	}
 	if m.Flags&UserName_Flag != UserName_Flag && m.Flags&Password_Flag == Password_Flag {
 		return nil, USERNAME_DOES_NOT_EXIST_WITH_PASSWORD
 	}
-	cursor += 2
-	m.KeepAlive = binary.BigEndian.Uint16(wire[cursor:])
-	cursor += 2
-	cTmp, clientID := UTF8_decode(wire[cursor:])
-	m.ClientID = clientID
-	cursor += cTmp
+	binary.Read(r, binary.BigEndian, &m.KeepAlive)
 
+	_ = UTF8_decode(r, &m.ClientID)
 	if m.Flags&Will_Flag == Will_Flag {
-		cTmp1, topic := UTF8_decode(wire[cursor:])
-		cTmp, message := UTF8_decode(wire[cursor+cTmp1:])
-		cursor += cTmp1 + cTmp
-		retain := m.Flags&WillRetain_Flag == WillRetain_Flag
-		qos := uint8(m.Flags&WillQoS_3_Flag) >> 3
-		m.Will = NewWill(topic, message, retain, qos)
+		m.Will = NewWill("", "", false, 0)
+		_ = UTF8_decode(r, &m.Will.Topic)
+		_ = UTF8_decode(r, &m.Will.Message)
+		m.Will.Retain = m.Flags&WillRetain_Flag == WillRetain_Flag
+		m.Will.QoS = uint8(m.Flags&WillQoS_3_Flag) >> 3
 	}
 
 	if m.Flags&UserName_Flag == UserName_Flag || m.Flags&Password_Flag == Password_Flag {
-		var name, passwd string
+		m.User = NewUser("", "")
 		if m.Flags&UserName_Flag == UserName_Flag {
-			cTmp, name = UTF8_decode(wire[cursor:])
-			cursor += cTmp
+			_ = UTF8_decode(r, &m.User.Name)
 		}
 		if m.Flags&Password_Flag == Password_Flag {
-			cTmp, passwd = UTF8_decode(wire[cursor:])
-			cursor += cTmp
+			_ = UTF8_decode(r, &m.User.Passwd)
 		}
-		m.User = NewUser(name, passwd)
 	}
 
 	return m, nil
@@ -457,12 +453,14 @@ func (self *ConnackMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParseConnackMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParseConnackMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &ConnackMessage{
 		FixedHeader: fh,
 	}
-	m.SessionPresentFlag = (wire[0] == 1)
-	m.ReturnCode = ConnectReturnCode(wire[1])
+	tmp := make([]byte, 2)
+	r.Read(tmp)
+	m.SessionPresentFlag = (tmp[0] == 1)
+	m.ReturnCode = ConnectReturnCode(tmp[1])
 	return m, nil
 }
 
@@ -517,20 +515,20 @@ func (self *PublishMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParsePublishMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParsePublishMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &PublishMessage{
 		FixedHeader: fh,
 	}
-	cursor, topicName := UTF8_decode(wire)
-	if strings.Contains(topicName, "#") || strings.Contains(topicName, "+") {
+	len := UTF8_decode(r, &m.TopicName)
+	if strings.Contains(m.TopicName, "#") || strings.Contains(m.TopicName, "+") {
 		return nil, WILDCARD_CHARACTERS_IN_PUBLISH
 	}
-	m.TopicName = topicName
 	if fh.QoS > 0 {
-		m.PacketID = binary.BigEndian.Uint16(wire[cursor:])
-		cursor += 2
+		binary.Read(r, binary.BigEndian, &m.PacketID)
+		len += 2
 	}
-	m.Payload = wire[cursor:]
+	m.Payload = make([]byte, fh.RemainLength-uint32(len))
+	r.Read(m.Payload)
 
 	return m, nil
 }
@@ -566,11 +564,11 @@ func (self *PubackMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParsePubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParsePubackMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &PubackMessage{
 		FixedHeader: fh,
 	}
-	m.PacketID = binary.BigEndian.Uint16(wire[:2])
+	binary.Read(r, binary.BigEndian, &m.PacketID)
 
 	return m, nil
 }
@@ -606,11 +604,11 @@ func (self *PubrecMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParsePubrecMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParsePubrecMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &PubrecMessage{
 		FixedHeader: fh,
 	}
-	m.PacketID = binary.BigEndian.Uint16(wire[:2])
+	binary.Read(r, binary.BigEndian, &m.PacketID)
 
 	return m, nil
 }
@@ -646,11 +644,11 @@ func (self *PubrelMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParsePubrelMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParsePubrelMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &PubrelMessage{
 		FixedHeader: fh,
 	}
-	m.PacketID = binary.BigEndian.Uint16(wire[:2])
+	binary.Read(r, binary.BigEndian, &m.PacketID)
 
 	return m, nil
 }
@@ -686,11 +684,11 @@ func (self *PubcompMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParsePubcompMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParsePubcompMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &PubcompMessage{
 		FixedHeader: fh,
 	}
-	m.PacketID = binary.BigEndian.Uint16(wire[:2])
+	binary.Read(r, binary.BigEndian, &m.PacketID)
 
 	return m, nil
 }
@@ -772,25 +770,27 @@ func (self *SubscribeMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParseSubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
-	if len(wire) == 0 {
-		return nil, PROTOCOL_VIOLATION
-	}
+func ParseSubscribeMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &SubscribeMessage{
 		FixedHeader: fh,
 	}
-	m.PacketID = binary.BigEndian.Uint16(wire[:2])
+	err := binary.Read(r, binary.BigEndian, &m.PacketID)
+	if err == io.EOF {
+		return nil, PROTOCOL_VIOLATION
+	}
 	for i := 2; uint32(i) < fh.RemainLength; {
-		length, topic := UTF8_decode(wire[i:])
-		if wire[i+length] == 3 {
+		subTopic := NewSubscribeTopic("", 0)
+		length := UTF8_decode(r, &subTopic.Topic)
+		var tmp byte
+		binary.Read(r, binary.BigEndian, tmp)
+		if tmp == 3 {
 			return nil, INVALID_QOS_3
-		} else if wire[i+length] > 3 {
+		} else if tmp > 3 {
 			return nil, MALFORMED_SUBSCRIBE_RESERVED_PART
 		}
-		qos := wire[i+length] & 0x03
-		m.SubscribeTopics = append(m.SubscribeTopics,
-			NewSubscribeTopic(topic, qos))
-		i += length + 1
+		subTopic.QoS = tmp & 0x03
+		m.SubscribeTopics = append(m.SubscribeTopics, subTopic)
+		i += int(length) + 1
 	}
 
 	return m, nil
@@ -856,13 +856,15 @@ func (self *SubackMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParseSubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParseSubackMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &SubackMessage{
 		FixedHeader: fh,
 	}
-	m.PacketID = binary.BigEndian.Uint16(wire[:2])
-	for _, v := range wire[2:] {
-		m.ReturnCodes = append(m.ReturnCodes, SubscribeReturnCode(v))
+	binary.Read(r, binary.BigEndian, &m.PacketID)
+	var tmp byte
+	for i := uint32(2); i < fh.RemainLength; i++ {
+		binary.Read(r, binary.BigEndian, &tmp)
+		m.ReturnCodes = append(m.ReturnCodes, SubscribeReturnCode(tmp))
 	}
 
 	return m, nil
@@ -919,20 +921,21 @@ func (self *UnsubscribeMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParseUnsubscribeMessage(fh *FixedHeader, wire []byte) (Message, error) {
-	if len(wire) == 0 {
-		return nil, PROTOCOL_VIOLATION
-	}
+func ParseUnsubscribeMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &UnsubscribeMessage{
 		FixedHeader: fh,
 	}
-	m.PacketID = binary.BigEndian.Uint16(wire[:2])
-	allLen := len(wire)
-	for i := 2; i < allLen; {
-		length, topic := UTF8_decode(wire[i:])
-		m.TopicNames = append(m.TopicNames, topic)
-		i += length
+	err := binary.Read(r, binary.BigEndian, &m.PacketID)
+	if err == io.EOF {
+		return nil, PROTOCOL_VIOLATION
 	}
+	var topicName string
+	for i := uint32(2); i < fh.RemainLength; {
+		len := UTF8_decode(r, &topicName)
+		m.TopicNames = append(m.TopicNames, topicName)
+		i += uint32(len)
+	}
+
 	return m, nil
 }
 
@@ -967,11 +970,11 @@ func (self *UnsubackMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParseUnsubackMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParseUnsubackMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &UnsubackMessage{
 		FixedHeader: fh,
 	}
-	m.PacketID = binary.BigEndian.Uint16(wire[:2])
+	binary.Read(r, binary.BigEndian, &m.PacketID)
 
 	return m, nil
 }
@@ -1004,7 +1007,7 @@ func (self *PingreqMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParsePingreqMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParsePingreqMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &PingreqMessage{
 		FixedHeader: fh,
 	}
@@ -1039,7 +1042,7 @@ func (self *PingrespMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParsePingrespMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParsePingrespMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &PingrespMessage{
 		FixedHeader: fh,
 	}
@@ -1074,7 +1077,7 @@ func (self *DisconnectMessage) GetPacketID() uint16 {
 	return self.PacketID
 }
 
-func ParseDisconnectMessage(fh *FixedHeader, wire []byte) (Message, error) {
+func ParseDisconnectMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 	m := &DisconnectMessage{
 		FixedHeader: fh,
 	}

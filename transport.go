@@ -34,12 +34,7 @@ func (self *Transport) SendMessage(m Message) error {
 }
 
 func (self *Transport) ReadMessage() (Message, error) {
-	wire := make([]byte, 65535) //TODO: should be optimized
-	len, err := self.conn.Read(wire)
-	if err != nil {
-		return nil, err
-	}
-	m, err := ReadFrame(wire[:len])
+	m, err := ReadFrame(self.conn)
 	if err != nil {
 		return nil, err
 	}
