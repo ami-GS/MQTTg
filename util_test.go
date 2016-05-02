@@ -1,6 +1,7 @@
 package MQTTg
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 )
@@ -25,12 +26,15 @@ func TestUTF8_encode(t *testing.T) {
 func TestUTF8_decode(t *testing.T) {
 	e_data := "hello world"
 	wire := make([]byte, 2+len(e_data))
+
 	e_len := UTF8_encode(wire, e_data)
-	a_len, a_data := UTF8_decode(wire)
+	r := bytes.NewReader(wire)
+	var a_data string
+	a_len := UTF8_decode(r, &a_data)
 	if a_data != e_data {
 		t.Errorf("got %v\nwant %v", a_data, e_data)
 	}
-	if a_len != e_len {
+	if a_len != uint16(e_len) {
 		t.Errorf("got %v\nwant %v", a_len, e_len)
 	}
 }
@@ -50,7 +54,10 @@ func TestRemainEncodeDecode(t *testing.T) {
 	}
 
 	for i, data := range e_wires {
-		a_data, a_len, _ := RemainDecode(data)
+		r := bytes.NewReader(data)
+
+		var a_data uint32
+		a_len, _ := RemainDecode(r, &a_data)
 		if a_data != exData[i] {
 			t.Errorf("got %v\nwant %v", a_data, exData[i])
 		}
