@@ -14,9 +14,9 @@ func UTF8_encode(dst []uint8, s string) int {
 }
 
 func UTF8_decode(r io.Reader, str *string) (len uint16) {
-	binary.Read(r, binary.BigEndian, len)
+	binary.Read(r, binary.BigEndian, &len)
 	data := make([]byte, len)
-	binary.Read(r, binary.BigEndian, data)
+	binary.Read(r, binary.BigEndian, &data)
 	*str = string(data)
 	len += 2
 	return len
@@ -40,7 +40,7 @@ func RemainDecode(r io.Reader, remLen *uint32) (int, error) {
 	i := 0
 	var tmp byte
 	for ; ; i++ {
-		binary.Read(r, binary.BigEndian, tmp)
+		binary.Read(r, binary.BigEndian, &tmp)
 		*remLen += uint32(tmp&0x7f) * m
 		m *= 0x80
 
