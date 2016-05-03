@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"reflect"
 	"testing"
+	"bytes"
 )
 
 func TestNewFixedHeader(t *testing.T) {
@@ -30,7 +31,8 @@ func TestFixedHeader_GetWire(t *testing.T) {
 
 func TestParseFixedHeader(t *testing.T) {
 	dat := []byte{0x3d, 0x01}
-	a_fh, a_fhLen, _ := ParseFixedHeader(dat)
+	r := bytes.NewReader(dat)
+	a_fh, a_fhLen, _ := ParseFixedHeader(r)
 	e_fh := NewFixedHeader(Publish, true, 2, true, 1, 0)
 	if !reflect.DeepEqual(a_fh, e_fh) {
 		t.Errorf("got %v\nwant %v", a_fh, e_fh)
@@ -83,7 +85,8 @@ func TestConnectMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParseConnectMessage(fh, a_wire[2:])
+	r := bytes.NewReader(a_wire[2:])
+	a_mm, _ := ParseConnectMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -112,7 +115,8 @@ func TestConnackMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParseConnackMessage(fh, a_wire[2:])
+	r := bytes.NewReader(a_wire[2:])
+	a_mm, _ := ParseConnackMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -154,7 +158,8 @@ func TestPublishMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParsePublishMessage(fh, a_wire[2:])
+	r := bytes.NewReader(a_wire[2:])
+	a_mm, _ := ParsePublishMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -181,7 +186,8 @@ func TestPubackMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParsePubackMessage(fh, a_wire[2:])
+	r := bytes.NewReader(a_wire[2:])
+	a_mm, _ := ParsePubackMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -208,7 +214,8 @@ func TestPubrecMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParsePubrecMessage(fh, a_wire[2:])
+	r := bytes.NewReader(a_wire[2:])
+	a_mm, _ := ParsePubrecMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -235,7 +242,8 @@ func TestPubrelMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParsePubrelMessage(fh, a_wire[2:])
+	r := bytes.NewReader(a_wire[2:])
+	a_mm, _ := ParsePubrelMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -262,7 +270,8 @@ func TestPubcompMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParsePubcompMessage(fh, a_wire[2:])
+	r := bytes.NewReader(a_wire[2:])
+	a_mm, _ := ParsePubcompMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -304,7 +313,8 @@ func TestSubscribeMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParseSubscribeMessage(fh, a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_wire[len(fh_wire):])
+	a_mm, _ := ParseSubscribeMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -338,7 +348,8 @@ func TestSubackMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParseSubackMessage(fh, a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_wire[len(fh_wire):])
+	a_mm, _ := ParseSubackMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -371,7 +382,8 @@ func TestUnsubscribeMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParseUnsubscribeMessage(fh, a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_wire[len(fh_wire):])
+	a_mm, _ := ParseUnsubscribeMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -399,7 +411,8 @@ func TestUnsubackMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	a_mm, _ := ParseUnsubackMessage(fh, a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_wire[len(fh_wire):])
+	a_mm, _ := ParseUnsubackMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -423,7 +436,8 @@ func TestPingreqMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, fh_wire)
 	}
 
-	a_mm, _ := ParsePingreqMessage(fh, a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_wire[len(fh_wire):])
+	a_mm, _ := ParsePingreqMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -447,7 +461,8 @@ func TestPingrespMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, fh_wire)
 	}
 
-	a_mm, _ := ParsePingrespMessage(fh, a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_wire[len(fh_wire):])
+	a_mm, _ := ParsePingrespMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -471,7 +486,8 @@ func TestDisconnectMessage(t *testing.T) {
 		t.Errorf("got %v\n\t want %v", a_wire, fh_wire)
 	}
 
-	a_mm, _ := ParseDisconnectMessage(fh, a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_wire[len(fh_wire):])
+	a_mm, _ := ParseDisconnectMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
 	}
@@ -495,8 +511,9 @@ func TestReadFrame(t *testing.T) {
 		User:        user,
 	}
 
-	wire := e_m.GetWire()
-	a_m, _ := ReadFrame(wire)
+	r := bytes.NewReader(e_m.GetWire())
+	
+	a_m, _ := ReadFrame(r)
 
 	if !reflect.DeepEqual(a_m, e_m) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
