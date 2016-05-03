@@ -782,7 +782,7 @@ func ParseSubscribeMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 		subTopic := NewSubscribeTopic("", 0)
 		length := UTF8_decode(r, &subTopic.Topic)
 		var tmp byte
-		binary.Read(r, binary.BigEndian, tmp)
+		binary.Read(r, binary.BigEndian, &tmp)
 		if tmp == 3 {
 			return nil, INVALID_QOS_3
 		} else if tmp > 3 {
