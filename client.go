@@ -196,7 +196,8 @@ func (self *Client) Connect(addPair string, cleanSession bool) error {
 		cleanSession = true
 	}
 
-	t, err := NewTransport(addPair)
+	t := NewTransport()
+	err := t.Connect(addPair)
 	if err != nil {
 		return err
 	}

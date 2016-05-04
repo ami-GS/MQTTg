@@ -9,8 +9,13 @@ type Transport struct {
 	conn *net.TCPConn
 }
 
-func NewTransport(addPair string) (*Transport, error) {
-	rAddr, err := net.ResolveTCPAddr("tcp4", addPair)
+func NewTransport() (*Transport) {
+	// TODO: do some certification, authentication
+	return &Transport{}
+}
+
+func (self *Transport) Connect(url string) error {
+	rAddr, err := net.ResolveTCPAddr("tcp4", url)
 	if err != nil {
 		return nil, err
 	}
@@ -18,7 +23,8 @@ func NewTransport(addPair string) (*Transport, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Transport{conn}, nil
+	self.conn = conn
+	return nil
 }
 
 func (self *Transport) SendMessage(m Message) error {
