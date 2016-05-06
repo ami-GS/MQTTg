@@ -17,11 +17,11 @@ func NewTransport() (*Transport) {
 func (self *Transport) Connect(url string) error {
 	rAddr, err := net.ResolveTCPAddr("tcp4", url)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	conn, err := net.DialTCP("tcp4", nil, rAddr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	self.conn = conn
 	return nil
