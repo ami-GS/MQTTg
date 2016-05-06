@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
-	"fmt"
 )
 
 func TestUTF8_encode(t *testing.T) {
@@ -51,8 +50,6 @@ func TestRemainEncodeDecode(t *testing.T) {
 		var a_wire bytes.Buffer
 		RemainEncode(&a_wire, dat)
 		a_b := a_wire.Bytes()
-		fmt.Println(a_b)
-		fmt.Println(e_wires[i])
 		if !reflect.DeepEqual(a_b, e_wires[i]) {
 			t.Errorf("got %v\nwant %v", a_b, e_wires[i])
 		}
