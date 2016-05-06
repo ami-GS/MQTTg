@@ -4,38 +4,40 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
+	"fmt"
 )
 
 func TestUTF8_encode(t *testing.T) {
 	data := "hello world"
-	a_wire := make([]byte, 2+len(data))
-	a_len := UTF8_encode(a_wire, data)
-	e_wire := make([]byte, 2+len(data))
-	e_wire[0], e_wire[1] = 0x00, 0x0b
-	copy(e_wire[2:], []byte(data))
-	e_len := len(e_wire)
-	if !reflect.DeepEqual(a_wire, e_wire) {
+	var a_wire, e_wire bytes.Buffer
+	UTF8_encode(&a_wire, data)
+	e_wire.Write([]byte{0x00, 0x0b})
+	e_wire.Write([]byte(data))
+	e_b := e_wire.Bytes()
+	a_b := e_wire.Bytes()
+	if !reflect.DeepEqual(a_b, e_b) {
 		t.Errorf("got %v\nwant %v", a_wire, e_wire)
 	}
-	if a_len != e_len {
-		t.Errorf("got %v\nwant %v", a_len, e_len)
+	if len(a_b) != len(e_b) {
+		t.Errorf("got %v\nwant %v", len(a_b), len(e_b))
 	}
 
 }
 
 func TestUTF8_decode(t *testing.T) {
 	e_data := "hello world"
-	wire := make([]byte, 2+len(e_data))
+	var wire bytes.Buffer
 
-	e_len := UTF8_encode(wire, e_data)
-	r := bytes.NewReader(wire)
+	UTF8_encode(&wire, e_data)
+	e_b := wire.Bytes()
+	r := bytes.NewReader(e_b)
 	var a_data string
 	a_len := UTF8_decode(r, &a_data)
 	if a_data != e_data {
 		t.Errorf("got %v\nwant %v", a_data, e_data)
 	}
-	if a_len != uint16(e_len) {
-		t.Errorf("got %v\nwant %v", a_len, e_len)
+	if a_len != uint16(len(e_b)) {
+		t.Errorf("got %v\nwant %v", a_len, len(e_b))
 	}
 }
 
@@ -46,10 +48,13 @@ func TestRemainEncodeDecode(t *testing.T) {
 		[]byte{0x80, 0x80, 0x01}, []byte{0xff, 0xff, 0x7f},
 		[]byte{0x80, 0x80, 0x80, 0x01}, []byte{0xff, 0xff, 0xff, 0x7f}}
 	for i, dat := range exData {
-		a_wire := make([]byte, len(e_wires[i]))
-		RemainEncode(a_wire, dat)
-		if !reflect.DeepEqual(a_wire, e_wires[i]) {
-			t.Errorf("got %v\nwant %v", a_wire, e_wires[i])
+		var a_wire bytes.Buffer
+		RemainEncode(&a_wire, dat)
+		a_b := a_wire.Bytes()
+		fmt.Println(a_b)
+		fmt.Println(e_wires[i])
+		if !reflect.DeepEqual(a_b, e_wires[i]) {
+			t.Errorf("got %v\nwant %v", a_b, e_wires[i])
 		}
 	}
 

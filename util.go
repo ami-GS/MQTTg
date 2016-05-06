@@ -7,9 +7,9 @@ import (
 	"net"
 )
 
-func UTF8_encode(dst []uint8, s string) int {
-	binary.BigEndian.PutUint16(dst, uint16(len(s)))
-	copy(dst[2:], []uint8(s))
+func UTF8_encode(w io.Writer, s string) int {
+	binary.Write(w, binary.BigEndian, uint16(len(s)))
+	_, _ = w.Write([]byte(s))
 	return 2 + len(s)
 }
 
@@ -22,15 +22,20 @@ func UTF8_decode(r io.Reader, str *string) (len uint16) {
 	return len
 }
 
-func RemainEncode(dst []uint8, length uint32) int {
+func RemainEncode(w io.Writer, length uint32) int {
 	i := 0
+	if length == 0 {
+		binary.Write(w, binary.BigEndian, uint8(0))
+		return i
+	}
+
 	for ; length > 0; i++ {
 		digit := uint8(length % 128)
 		length /= 128
 		if length > 0 {
 			digit |= 0x80
 		}
-		dst[i] = digit
+		binary.Write(w, binary.BigEndian, &digit)
 	}
 	return i
 }

@@ -28,11 +28,7 @@ func (self *Transport) Connect(url string) error {
 }
 
 func (self *Transport) SendMessage(m Message) error {
-	wire := m.GetWire()
-	_, err := self.conn.Write(wire)
-	if err != nil {
-		return err
-	}
+	m.GetWire(self.conn)
 	if FrameDebug {
 		fmt.Println(ClSend.Apply("Send")+":"+self.conn.LocalAddr().String()+" ---> "+self.conn.RemoteAddr().String(), m.String())
 	}

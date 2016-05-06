@@ -83,30 +83,17 @@ func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length 
 	}
 }
 
-func (self *FixedHeader) GetWire() (wire []byte) {
-	remainByteLen := 0
-	switch {
-	case self.RemainLength <= 0x7f:
-		remainByteLen = 1
-	case self.RemainLength <= 0x3fff:
-		remainByteLen = 2
-	case self.RemainLength <= 0x1fffff:
-		remainByteLen = 3
-	case self.RemainLength <= 0x0fffffff:
-		remainByteLen = 4
-	}
-	wire = make([]uint8, 1+remainByteLen)
-	wire[0] = uint8(self.Type) << 4
+func (self *FixedHeader) GetWire(w io.Writer) {
+	flags := uint8(self.Type) << 4
 	if self.Dup {
-		wire[0] |= 0x08
+		flags |= 0x08
 	}
-	wire[0] |= (self.QoS << 1)
+	flags |= (self.QoS << 1)
 	if self.Retain {
-		wire[0] |= 0x01
+		flags |= 0x01
 	}
-	_ = RemainEncode(wire[1:], self.RemainLength)
-
-	return
+	binary.Write(w, binary.BigEndian, &flags)
+	RemainEncode(w, self.RemainLength)
 }
 
 func (self *FixedHeader) String() string {
@@ -165,7 +152,7 @@ var ParseMessage = map[MessageType]FrameParser{
 }
 
 type Message interface {
-	GetWire() []byte
+	GetWire(w io.Writer)
 	String() string
 	GetPacketID() uint16
 }
@@ -294,47 +281,24 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 	}
 }
 
-func (self *ConnectMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	length := 6 + len(self.Protocol.Name) + 2 + len(fh_wire)
-	if len(self.ClientID) != 0 {
-		length += len(self.ClientID)
-	}
-	if self.Flags&Will_Flag == Will_Flag {
-		length += 4 + len(self.Will.Topic) + len(self.Will.Message)
-	}
-	if self.Flags&UserName_Flag == UserName_Flag {
-		length += 2 + len(self.User.Name)
-	}
-	if self.Flags&Password_Flag == Password_Flag {
-		length += 2 + len(self.User.Passwd)
-	}
-
-	wire := make([]uint8, length)
-	copy(wire, fh_wire)
-	cursor := len(fh_wire)
-	cursor += UTF8_encode(wire[cursor:], self.Protocol.Name)
-
-	wire[cursor] = self.Protocol.Level
-	wire[cursor+1] = uint8(self.Flags)
-	cursor += 2 // skip flag
-
-	binary.BigEndian.PutUint16(wire[cursor:], self.KeepAlive)
-	cursor += 2
-	cursor += UTF8_encode(wire[cursor:], self.ClientID)
+func (self *ConnectMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	_ = UTF8_encode(w, self.Protocol.Name)
+	binary.Write(w, binary.BigEndian, byte(self.Protocol.Level))
+	binary.Write(w, binary.BigEndian, byte(self.Flags))
+	binary.Write(w, binary.BigEndian, &self.KeepAlive)
+	_ = UTF8_encode(w, self.ClientID)
 
 	if self.Flags&Will_Flag == Will_Flag {
-		cursor += UTF8_encode(wire[cursor:], self.Will.Topic)
-		cursor += UTF8_encode(wire[cursor:], self.Will.Message)
+		_ = UTF8_encode(w, self.Will.Topic)
+		_ = UTF8_encode(w, self.Will.Message)
 	}
 	if self.Flags&UserName_Flag == UserName_Flag {
-		cursor += UTF8_encode(wire[cursor:], self.User.Name)
+		_ = UTF8_encode(w, self.User.Name)
 	}
 	if self.Flags&Password_Flag == Password_Flag {
-		cursor += UTF8_encode(wire[cursor:], self.User.Passwd)
+		_ = UTF8_encode(w, self.User.Passwd)
 	}
-
-	return wire
 }
 
 func ParseConnectMessage(fh *FixedHeader, r io.Reader) (Message, error) {
@@ -432,16 +396,14 @@ func NewConnackMessage(flag bool, code ConnectReturnCode) *ConnackMessage {
 	}
 }
 
-func (self *ConnackMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	wire := make([]byte, 4)
-	copy(wire, fh_wire)
+func (self *ConnackMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	var sPresentFlag byte = 0
 	if self.SessionPresentFlag {
-		wire[2] = 0x01
+		sPresentFlag = 0x01
 	}
-	wire[3] = byte(self.ReturnCode)
-
-	return wire
+	binary.Write(w, binary.BigEndian, &sPresentFlag)
+	binary.Write(w, binary.BigEndian, byte(self.ReturnCode))
 }
 
 func (self *ConnackMessage) String() string {
@@ -490,21 +452,13 @@ func NewPublishMessage(dup bool, qos uint8, retain bool, topic string, id uint16
 	}
 }
 
-func (self *PublishMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	QoSexistence := 0
+func (self *PublishMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	_ = UTF8_encode(w, self.TopicName)
 	if self.QoS > 0 {
-		QoSexistence = 2
+		binary.Write(w, binary.BigEndian, &self.PacketID)
 	}
-	topicLen := len(self.TopicName)
-	wire := make([]byte, 2+QoSexistence+topicLen+len(self.Payload))
-	UTF8_encode(wire, self.TopicName)
-	if self.QoS > 0 {
-		binary.BigEndian.PutUint16(wire[2+topicLen:], self.PacketID)
-	}
-	copy(wire[2+QoSexistence+topicLen:], self.Payload)
-
-	return append(fh_wire, wire...)
+	w.Write(self.Payload)
 }
 
 func (self *PublishMessage) String() string {
@@ -547,13 +501,9 @@ func NewPubackMessage(id uint16) *PubackMessage {
 	}
 }
 
-func (self *PubackMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	wire := make([]byte, 4)
-	copy(wire, fh_wire)
-	binary.BigEndian.PutUint16(wire[2:], self.PacketID)
-
-	return wire
+func (self *PubackMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	binary.Write(w, binary.BigEndian, &self.PacketID)
 }
 
 func (self *PubackMessage) String() string {
@@ -587,13 +537,10 @@ func NewPubrecMessage(id uint16) *PubrecMessage {
 	}
 }
 
-func (self *PubrecMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	wire := make([]byte, 4)
-	copy(wire, fh_wire)
-	binary.BigEndian.PutUint16(wire[2:], self.PacketID)
+func (self *PubrecMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	binary.Write(w, binary.BigEndian, &self.PacketID)
 
-	return wire
 }
 
 func (self *PubrecMessage) String() string {
@@ -627,13 +574,9 @@ func NewPubrelMessage(id uint16) *PubrelMessage {
 	}
 }
 
-func (self *PubrelMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	wire := make([]byte, 4)
-	copy(wire, fh_wire)
-	binary.BigEndian.PutUint16(wire[2:], self.PacketID)
-
-	return wire
+func (self *PubrelMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	binary.Write(w, binary.BigEndian, &self.PacketID)
 }
 
 func (self *PubrelMessage) String() string {
@@ -667,13 +610,9 @@ func NewPubcompMessage(id uint16) *PubcompMessage {
 	}
 }
 
-func (self *PubcompMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	wire := make([]byte, 4)
-	copy(wire, fh_wire)
-	binary.BigEndian.PutUint16(wire[2:], self.PacketID)
-
-	return wire
+func (self *PubcompMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	binary.Write(w, binary.BigEndian, &self.PacketID)
 }
 
 func (self *PubcompMessage) String() string {
@@ -737,24 +676,14 @@ func NewSubscribeMessage(id uint16, topics []*SubscribeTopic) *SubscribeMessage 
 	}
 }
 
-func (self *SubscribeMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	topicsLen := 0
-	for _, v := range self.SubscribeTopics {
-		topicsLen += len(v.Topic)
-	}
-	wire := make([]byte, len(fh_wire)+2+3*len(self.SubscribeTopics)+topicsLen)
-	copy(wire, fh_wire)
-	cursor := len(fh_wire)
-	binary.BigEndian.PutUint16(wire[cursor:], self.PacketID)
-	cursor += 2
-	for _, v := range self.SubscribeTopics {
-		cursor += UTF8_encode(wire[cursor:], v.Topic)
-		wire[cursor] = v.QoS
-		cursor++
-	}
+func (self *SubscribeMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	binary.Write(w, binary.BigEndian, &self.PacketID)
 
-	return wire
+	for _, v := range self.SubscribeTopics {
+		_ = UTF8_encode(w, v.Topic)
+		binary.Write(w, binary.BigEndian, &v.QoS)
+	}
 }
 
 func (self *SubscribeMessage) String() string {
@@ -831,17 +760,13 @@ func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
 	}
 }
 
-func (self *SubackMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	wire := make([]byte, len(fh_wire)+2+len(self.ReturnCodes))
-	copy(wire, fh_wire)
-	cursor := len(fh_wire)
-	binary.BigEndian.PutUint16(wire[cursor:], self.PacketID)
-	cursor += 2
-	for i, v := range self.ReturnCodes {
-		wire[cursor+i] = byte(v)
+func (self *SubackMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	binary.Write(w, binary.BigEndian, &self.PacketID)
+
+	for _, v := range self.ReturnCodes {
+		binary.Write(w, binary.BigEndian, byte(v))
 	}
-	return wire
 }
 
 func (self *SubackMessage) String() string {
@@ -890,23 +815,13 @@ func NewUnsubscribeMessage(id uint16, topics []string) *UnsubscribeMessage {
 	}
 }
 
-func (self *UnsubscribeMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	allLen := 0
-	for _, v := range self.TopicNames {
-		allLen += len(v)
-	}
-	cursor := len(fh_wire)
-	wire := make([]byte, cursor+2+2*len(self.TopicNames)+allLen)
-	copy(wire, fh_wire)
-	binary.BigEndian.PutUint16(wire[cursor:], self.PacketID)
-	cursor += 2
+func (self *UnsubscribeMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	binary.Write(w, binary.BigEndian, &self.PacketID)
 
 	for _, v := range self.TopicNames {
-		cursor += UTF8_encode(wire[cursor:], v)
+		_ = UTF8_encode(w, v)
 	}
-
-	return wire
 }
 
 func (self *UnsubscribeMessage) String() string {
@@ -953,13 +868,9 @@ func NewUnsubackMessage(id uint16) *UnsubackMessage {
 	}
 }
 
-func (self *UnsubackMessage) GetWire() []byte {
-	fh_wire := self.FixedHeader.GetWire()
-	wire := make([]byte, 4)
-	copy(wire, fh_wire)
-	binary.BigEndian.PutUint16(wire[2:], self.PacketID)
-
-	return wire
+func (self *UnsubackMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
+	binary.Write(w, binary.BigEndian, &self.PacketID)
 }
 
 func (self *UnsubackMessage) String() string {
@@ -993,9 +904,8 @@ func NewPingreqMessage() *PingreqMessage {
 	}
 }
 
-func (self *PingreqMessage) GetWire() []byte {
-	wire := self.FixedHeader.GetWire()
-	return wire // CHECK: Is this correct?
+func (self *PingreqMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w) // CHECK: Is this correct?
 }
 
 func (self *PingreqMessage) String() string {
@@ -1028,9 +938,8 @@ func NewPingrespMessage() *PingrespMessage {
 	}
 }
 
-func (self *PingrespMessage) GetWire() []byte {
-	wire := self.FixedHeader.GetWire()
-	return wire // CHECK: Is this correct?
+func (self *PingrespMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w) // CHECK: Is this correct?
 }
 
 func (self *PingrespMessage) String() string {
@@ -1063,9 +972,8 @@ func NewDisconnectMessage() *DisconnectMessage {
 	}
 }
 
-func (self *DisconnectMessage) GetWire() []byte {
-	wire := self.FixedHeader.GetWire()
-	return wire
+func (self *DisconnectMessage) GetWire(w io.Writer) {
+	self.FixedHeader.GetWire(w)
 }
 
 func (self *DisconnectMessage) String() string {

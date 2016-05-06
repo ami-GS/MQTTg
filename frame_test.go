@@ -22,9 +22,10 @@ func TestNewFixedHeader(t *testing.T) {
 func TestFixedHeader_GetWire(t *testing.T) {
 	// TODO: check lonber remain length
 	a_fh := NewFixedHeader(Publish, true, 2, true, 1, 0)
-	a_wire := a_fh.GetWire()
+	var a_wire bytes.Buffer
+	a_fh.GetWire(&a_wire)
 	e_wire := []byte{0x3d, 0x01}
-	if !reflect.DeepEqual(a_wire, e_wire) {
+	if !reflect.DeepEqual(a_wire.Bytes(), e_wire) {
 		t.Errorf("got %v\nwant %v", e_wire, a_wire)
 	}
 }
@@ -67,25 +68,27 @@ func TestConnectMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
-	e_wire := make([]byte, len(fh_wire)+10+2+4+2+2+len(id+will.Topic+will.Message+user.Name+user.Passwd))
-	copy(e_wire, fh_wire)
-	UTF8_encode(e_wire[2:], MQTT_3_1_1.Name)
-	e_wire[8] = MQTT_3_1_1.Level
-	e_wire[9] = byte(flags)
-	binary.BigEndian.PutUint16(e_wire[10:], keepAlive)
-	UTF8_encode(e_wire[12:], id)
-	UTF8_encode(e_wire[19:], will.Topic)
-	UTF8_encode(e_wire[31:], will.Message)
-	UTF8_encode(e_wire[40:], user.Name)
-	UTF8_encode(e_wire[47:], user.Passwd)
+	var a_wire, e_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&e_wire)
+	a_b := a_wire.Bytes()
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
-		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
+	UTF8_encode(&e_wire, MQTT_3_1_1.Name)
+	binary.Write(&e_wire, binary.BigEndian, byte(MQTT_3_1_1.Level))
+	binary.Write(&e_wire, binary.BigEndian, byte(flags))
+	binary.Write(&e_wire, binary.BigEndian, keepAlive)
+	UTF8_encode(&e_wire, id)
+	UTF8_encode(&e_wire, will.Topic)
+	UTF8_encode(&e_wire, will.Message)
+	UTF8_encode(&e_wire, user.Name)
+	UTF8_encode(&e_wire, user.Passwd)
+	e_b := e_wire.Bytes()
+
+	if !reflect.DeepEqual(a_b, e_b) {
+		t.Errorf("got %v\n\t want %v", a_b, e_b)
 	}
 
-	r := bytes.NewReader(a_wire[2:])
+	r := bytes.NewReader(a_b[2:])
 	a_mm, _ := ParseConnectMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -107,15 +110,19 @@ func TestConnackMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
-	e_wire := []byte{fh_wire[0], fh_wire[1], 0x00, byte(code)}
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
-		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
+	e_wire := []byte{f_b[0], f_b[1], 0x00, byte(code)}
+
+	if !reflect.DeepEqual(a_b, e_wire) {
+		t.Errorf("got %v\n\t want %v", a_b, e_wire)
 	}
 
-	r := bytes.NewReader(a_wire[2:])
+	r := bytes.NewReader(a_b[2:])
 	a_mm, _ := ParseConnackMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -146,19 +153,20 @@ func TestPublishMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
-	e_wire := make([]byte, len(fh_wire)+int(length))
-	copy(e_wire, fh_wire)
-	UTF8_encode(e_wire[len(fh_wire):], topic)
-	binary.BigEndian.PutUint16(e_wire[len(fh_wire)+13:], id)
-	copy(e_wire[len(fh_wire)+15:], []byte(payload))
+	var a_wire, e_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&e_wire)
+	a_b := a_wire.Bytes()
+	UTF8_encode(&e_wire, topic)
+	binary.Write(&e_wire, binary.BigEndian, id)
+	e_wire.Write([]byte(payload))
+	e_b := e_wire.Bytes()
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
-		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
+	if !reflect.DeepEqual(a_b, e_b) {
+		t.Errorf("got %v\n\t want %v", a_wire, e_b)
 	}
 
-	r := bytes.NewReader(a_wire[2:])
+	r := bytes.NewReader(a_b[2:])
 	a_mm, _ := ParsePublishMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -177,16 +185,20 @@ func TestPubackMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
 	e_wire := make([]byte, 4)
-	copy(e_wire, fh.GetWire())
+	copy(e_wire, f_b)
 	binary.BigEndian.PutUint16(e_wire[2:], id)
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
+	if !reflect.DeepEqual(a_b, e_wire) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	r := bytes.NewReader(a_wire[2:])
+	r := bytes.NewReader(a_b[2:])
 	a_mm, _ := ParsePubackMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -205,16 +217,21 @@ func TestPubrecMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
+
 	e_wire := make([]byte, 4)
-	copy(e_wire, fh.GetWire())
+	copy(e_wire, f_b)
 	binary.BigEndian.PutUint16(e_wire[2:], id)
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
+	if !reflect.DeepEqual(a_b, e_wire) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	r := bytes.NewReader(a_wire[2:])
+	r := bytes.NewReader(a_b[2:])
 	a_mm, _ := ParsePubrecMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -233,16 +250,21 @@ func TestPubrelMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
+
 	e_wire := make([]byte, 4)
-	copy(e_wire, fh.GetWire())
+	copy(e_wire, f_b)
 	binary.BigEndian.PutUint16(e_wire[2:], id)
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
+	if !reflect.DeepEqual(a_b, e_wire) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	r := bytes.NewReader(a_wire[2:])
+	r := bytes.NewReader(a_b[2:])
 	a_mm, _ := ParsePubrelMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -261,16 +283,21 @@ func TestPubcompMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
+
 	e_wire := make([]byte, 4)
-	copy(e_wire, fh.GetWire())
+	copy(e_wire, f_b)
 	binary.BigEndian.PutUint16(e_wire[2:], id)
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
+	if !reflect.DeepEqual(a_b, e_wire) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	r := bytes.NewReader(a_wire[2:])
+	r := bytes.NewReader(a_b[2:])
 	a_mm, _ := ParsePubcompMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -297,23 +324,21 @@ func TestSubscribeMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
-	e_wire := make([]byte, len(fh_wire)+int(length))
-	copy(e_wire, fh_wire)
-	binary.BigEndian.PutUint16(e_wire[len(fh_wire):], id)
-	nxt := 2 + len(fh_wire)
+	var a_wire, e_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&e_wire)
+	a_b := a_wire.Bytes()
+	binary.Write(&e_wire, binary.BigEndian, id)
 	for _, topic := range topics {
-		nxt += UTF8_encode(e_wire[nxt:], topic.Topic)
-		e_wire[nxt] = topic.QoS
-		nxt++
+		UTF8_encode(&e_wire, topic.Topic)
+		binary.Write(&e_wire, binary.BigEndian, topic.QoS)
 	}
+	e_b := e_wire.Bytes()
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
-		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
+	if !reflect.DeepEqual(a_b, e_b) {
+		t.Errorf("got %v\n\t want %v", a_b, e_b)
 	}
-
-	r := bytes.NewReader(a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_b[2:])
 	a_mm, _ := ParseSubscribeMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -335,20 +360,23 @@ func TestSubackMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
-	e_wire := make([]byte, len(fh_wire)+int(length))
-	copy(e_wire, fh_wire)
-	binary.BigEndian.PutUint16(e_wire[len(fh_wire):], id)
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
+	e_wire := make([]byte, len(f_b)+int(length))
+	copy(e_wire, f_b)
+	binary.BigEndian.PutUint16(e_wire[len(f_b):], id)
 	for i, v := range codes {
-		e_wire[len(fh_wire)+2+i] = uint8(v)
+		e_wire[len(f_b)+2+i] = uint8(v)
 	}
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
+	if !reflect.DeepEqual(a_b, e_wire) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	r := bytes.NewReader(a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_b[len(f_b):])
 	a_mm, _ := ParseSubackMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -370,19 +398,20 @@ func TestUnsubscribeMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
-	e_wire := make([]byte, len(fh_wire)+int(length))
-	copy(e_wire, fh_wire)
-	binary.BigEndian.PutUint16(e_wire[len(fh_wire):], id)
-	UTF8_encode(e_wire[len(fh_wire)+2:], topics[0])
-	UTF8_encode(e_wire[len(fh_wire)+4+len(topics[0]):], topics[1])
+	var a_wire, e_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&e_wire)
+	a_b := a_wire.Bytes()
+	binary.Write(&e_wire, binary.BigEndian, id)
+	UTF8_encode(&e_wire, topics[0])
+	UTF8_encode(&e_wire, topics[1])
+	e_b := e_wire.Bytes()
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
-		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
+	if !reflect.DeepEqual(a_b, e_b) {
+		t.Errorf("got %v\n\t want %v", a_b, e_b)
 	}
 
-	r := bytes.NewReader(a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_b[2:])
 	a_mm, _ := ParseUnsubscribeMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -401,17 +430,20 @@ func TestUnsubackMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
 	e_wire := make([]byte, 4)
-	copy(e_wire, fh_wire)
+	copy(e_wire, f_b)
 	binary.BigEndian.PutUint16(e_wire[2:], id)
 
-	if !reflect.DeepEqual(a_wire, e_wire) {
+	if !reflect.DeepEqual(a_b, e_wire) {
 		t.Errorf("got %v\n\t want %v", a_wire, e_wire)
 	}
 
-	r := bytes.NewReader(a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_b[len(f_b):])
 	a_mm, _ := ParseUnsubackMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -429,14 +461,18 @@ func TestPingreqMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
 
-	if !reflect.DeepEqual(a_wire, fh_wire) {
-		t.Errorf("got %v\n\t want %v", a_wire, fh_wire)
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
+
+	if !reflect.DeepEqual(a_b, f_b) {
+		t.Errorf("got %v\n\t want %v", a_b, f_b)
 	}
 
-	r := bytes.NewReader(a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_b[len(f_b):])
 	a_mm, _ := ParsePingreqMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -454,14 +490,17 @@ func TestPingrespMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
 
-	if !reflect.DeepEqual(a_wire, fh_wire) {
-		t.Errorf("got %v\n\t want %v", a_wire, fh_wire)
+	if !reflect.DeepEqual(a_b, f_b) {
+		t.Errorf("got %v\n\t want %v", a_b, f_b)
 	}
 
-	r := bytes.NewReader(a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_b[len(f_b):])
 	a_mm, _ := ParsePingrespMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -479,14 +518,17 @@ func TestDisconnectMessage(t *testing.T) {
 		t.Errorf("got %v\nwant %v", a_m, e_m)
 	}
 
-	a_wire := a_m.GetWire()
-	fh_wire := fh.GetWire()
+	var a_wire, fh_wire bytes.Buffer
+	a_m.GetWire(&a_wire)
+	fh.GetWire(&fh_wire)
+	a_b := a_wire.Bytes()
+	f_b := fh_wire.Bytes()
 
-	if !reflect.DeepEqual(a_wire, fh_wire) {
-		t.Errorf("got %v\n\t want %v", a_wire, fh_wire)
+	if !reflect.DeepEqual(a_b, f_b) {
+		t.Errorf("got %v\n\t want %v", a_b, f_b)
 	}
 
-	r := bytes.NewReader(a_wire[len(fh_wire):])
+	r := bytes.NewReader(a_b[len(f_b):])
 	a_mm, _ := ParseDisconnectMessage(fh, r)
 	if !reflect.DeepEqual(a_mm, e_m) {
 		t.Errorf("got %v\nwant %v", a_mm, e_m)
@@ -511,8 +553,10 @@ func TestReadFrame(t *testing.T) {
 		User:        user,
 	}
 
-	r := bytes.NewReader(e_m.GetWire())
-	
+	var e_wire bytes.Buffer
+	e_m.GetWire(&e_wire)
+	e_b := e_wire.Bytes()
+	r := bytes.NewReader(e_b)
 	a_m, _ := ReadFrame(r)
 
 	if !reflect.DeepEqual(a_m, e_m) {
