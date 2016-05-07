@@ -19,11 +19,11 @@ func TestNewFixedHeader(t *testing.T) {
 	}
 }
 
-func TestFixedHeader_GetWire(t *testing.T) {
+func TestFixedHeader_Write(t *testing.T) {
 	// TODO: check lonber remain length
 	a_fh := NewFixedHeader(Publish, true, 2, true, 1, 0)
 	var a_wire bytes.Buffer
-	a_fh.GetWire(&a_wire)
+	a_fh.Write(&a_wire)
 	e_wire := []byte{0x3d, 0x01}
 	if !reflect.DeepEqual(a_wire.Bytes(), e_wire) {
 		t.Errorf("got %v\nwant %v", e_wire, a_wire)
@@ -69,8 +69,8 @@ func TestConnectMessage(t *testing.T) {
 	}
 
 	var a_wire, e_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&e_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&e_wire)
 	a_b := a_wire.Bytes()
 
 	UTF8_encode(&e_wire, MQTT_3_1_1.Name)
@@ -111,8 +111,8 @@ func TestConnackMessage(t *testing.T) {
 	}
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 
@@ -154,8 +154,8 @@ func TestPublishMessage(t *testing.T) {
 	}
 
 	var a_wire, e_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&e_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&e_wire)
 	a_b := a_wire.Bytes()
 	UTF8_encode(&e_wire, topic)
 	binary.Write(&e_wire, binary.BigEndian, id)
@@ -186,8 +186,8 @@ func TestPubackMessage(t *testing.T) {
 	}
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 	e_wire := make([]byte, 4)
@@ -218,8 +218,8 @@ func TestPubrecMessage(t *testing.T) {
 	}
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 
@@ -251,8 +251,8 @@ func TestPubrelMessage(t *testing.T) {
 	}
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 
@@ -284,8 +284,8 @@ func TestPubcompMessage(t *testing.T) {
 	}
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 
@@ -325,8 +325,8 @@ func TestSubscribeMessage(t *testing.T) {
 	}
 
 	var a_wire, e_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&e_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&e_wire)
 	a_b := a_wire.Bytes()
 	binary.Write(&e_wire, binary.BigEndian, id)
 	for _, topic := range topics {
@@ -361,8 +361,8 @@ func TestSubackMessage(t *testing.T) {
 	}
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 	e_wire := make([]byte, len(f_b)+int(length))
@@ -399,8 +399,8 @@ func TestUnsubscribeMessage(t *testing.T) {
 	}
 
 	var a_wire, e_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&e_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&e_wire)
 	a_b := a_wire.Bytes()
 	binary.Write(&e_wire, binary.BigEndian, id)
 	UTF8_encode(&e_wire, topics[0])
@@ -431,8 +431,8 @@ func TestUnsubackMessage(t *testing.T) {
 	}
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 	e_wire := make([]byte, 4)
@@ -463,8 +463,8 @@ func TestPingreqMessage(t *testing.T) {
 
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 
@@ -491,8 +491,8 @@ func TestPingrespMessage(t *testing.T) {
 	}
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 
@@ -519,8 +519,8 @@ func TestDisconnectMessage(t *testing.T) {
 	}
 
 	var a_wire, fh_wire bytes.Buffer
-	a_m.GetWire(&a_wire)
-	fh.GetWire(&fh_wire)
+	a_m.Write(&a_wire)
+	fh.Write(&fh_wire)
 	a_b := a_wire.Bytes()
 	f_b := fh_wire.Bytes()
 
@@ -554,7 +554,7 @@ func TestReadFrame(t *testing.T) {
 	}
 
 	var e_wire bytes.Buffer
-	e_m.GetWire(&e_wire)
+	e_m.Write(&e_wire)
 	e_b := e_wire.Bytes()
 	r := bytes.NewReader(e_b)
 	a_m, _ := ReadFrame(r)

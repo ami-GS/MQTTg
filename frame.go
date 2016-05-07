@@ -83,7 +83,7 @@ func NewFixedHeader(mType MessageType, dup bool, qos uint8, retain bool, length 
 	}
 }
 
-func (self *FixedHeader) GetWire(w io.Writer) {
+func (self *FixedHeader) Write(w io.Writer) {
 	flags := uint8(self.Type) << 4
 	if self.Dup {
 		flags |= 0x08
@@ -152,7 +152,7 @@ var ParseMessage = map[MessageType]FrameParser{
 }
 
 type Message interface {
-	GetWire(w io.Writer)
+	Write(w io.Writer)
 	String() string
 	GetPacketID() uint16
 }
@@ -281,8 +281,8 @@ func NewConnectMessage(keepAlive uint16, clientID string, cleanSession bool, wil
 	}
 }
 
-func (self *ConnectMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *ConnectMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	_ = UTF8_encode(w, self.Protocol.Name)
 	binary.Write(w, binary.BigEndian, byte(self.Protocol.Level))
 	binary.Write(w, binary.BigEndian, byte(self.Flags))
@@ -396,8 +396,8 @@ func NewConnackMessage(flag bool, code ConnectReturnCode) *ConnackMessage {
 	}
 }
 
-func (self *ConnackMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *ConnackMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	var sPresentFlag byte = 0
 	if self.SessionPresentFlag {
 		sPresentFlag = 0x01
@@ -452,8 +452,8 @@ func NewPublishMessage(dup bool, qos uint8, retain bool, topic string, id uint16
 	}
 }
 
-func (self *PublishMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *PublishMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	_ = UTF8_encode(w, self.TopicName)
 	if self.QoS > 0 {
 		binary.Write(w, binary.BigEndian, &self.PacketID)
@@ -501,8 +501,8 @@ func NewPubackMessage(id uint16) *PubackMessage {
 	}
 }
 
-func (self *PubackMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *PubackMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	binary.Write(w, binary.BigEndian, &self.PacketID)
 }
 
@@ -537,8 +537,8 @@ func NewPubrecMessage(id uint16) *PubrecMessage {
 	}
 }
 
-func (self *PubrecMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *PubrecMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	binary.Write(w, binary.BigEndian, &self.PacketID)
 
 }
@@ -574,8 +574,8 @@ func NewPubrelMessage(id uint16) *PubrelMessage {
 	}
 }
 
-func (self *PubrelMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *PubrelMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	binary.Write(w, binary.BigEndian, &self.PacketID)
 }
 
@@ -610,8 +610,8 @@ func NewPubcompMessage(id uint16) *PubcompMessage {
 	}
 }
 
-func (self *PubcompMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *PubcompMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	binary.Write(w, binary.BigEndian, &self.PacketID)
 }
 
@@ -676,8 +676,8 @@ func NewSubscribeMessage(id uint16, topics []*SubscribeTopic) *SubscribeMessage 
 	}
 }
 
-func (self *SubscribeMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *SubscribeMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	binary.Write(w, binary.BigEndian, &self.PacketID)
 
 	for _, v := range self.SubscribeTopics {
@@ -760,8 +760,8 @@ func NewSubackMessage(id uint16, codes []SubscribeReturnCode) *SubackMessage {
 	}
 }
 
-func (self *SubackMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *SubackMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	binary.Write(w, binary.BigEndian, &self.PacketID)
 
 	for _, v := range self.ReturnCodes {
@@ -815,8 +815,8 @@ func NewUnsubscribeMessage(id uint16, topics []string) *UnsubscribeMessage {
 	}
 }
 
-func (self *UnsubscribeMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *UnsubscribeMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	binary.Write(w, binary.BigEndian, &self.PacketID)
 
 	for _, v := range self.TopicNames {
@@ -868,8 +868,8 @@ func NewUnsubackMessage(id uint16) *UnsubackMessage {
 	}
 }
 
-func (self *UnsubackMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *UnsubackMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 	binary.Write(w, binary.BigEndian, &self.PacketID)
 }
 
@@ -904,8 +904,8 @@ func NewPingreqMessage() *PingreqMessage {
 	}
 }
 
-func (self *PingreqMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w) // CHECK: Is this correct?
+func (self *PingreqMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w) // CHECK: Is this correct?
 }
 
 func (self *PingreqMessage) String() string {
@@ -938,8 +938,8 @@ func NewPingrespMessage() *PingrespMessage {
 	}
 }
 
-func (self *PingrespMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w) // CHECK: Is this correct?
+func (self *PingrespMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w) // CHECK: Is this correct?
 }
 
 func (self *PingrespMessage) String() string {
@@ -972,8 +972,8 @@ func NewDisconnectMessage() *DisconnectMessage {
 	}
 }
 
-func (self *DisconnectMessage) GetWire(w io.Writer) {
-	self.FixedHeader.GetWire(w)
+func (self *DisconnectMessage) Write(w io.Writer) {
+	self.FixedHeader.Write(w)
 }
 
 func (self *DisconnectMessage) String() string {
