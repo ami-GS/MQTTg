@@ -7,10 +7,10 @@ import (
 func main() {
 	b := MQTTg.Broker{
 		MyAddr:  nil,
-		Clients: make(map[string]*MQTTg.ClientInfo),
+		Clients: make(map[string]*MQTTg.BrokerSideClient),
 		TopicRoot: &MQTTg.TopicNode{
 			make(map[string]*MQTTg.TopicNode),
-			"/", "", 0, make(map[string]uint8)},
+			"", "/", "", 0, make(map[string]uint8)},
 	}
 	b.Start()
 }
