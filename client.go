@@ -154,20 +154,19 @@ func (self *ClientInfo) WriteLoop() (err error) {
 		if ok {
 			return PACKET_ID_IS_USED_ALREADY
 		}
-		err = self.Ct.SendMessage(m)
-		if err == nil {
-			switch m.(type) {
-			case *PublishMessage:
-				if id > 0 {
-					self.PacketIDMap[id] = m
-				}
-			case *PubrecMessage, *PubrelMessage, *SubscribeMessage, *UnsubscribeMessage:
-				if id == 0 {
-					return PACKET_ID_SHOULD_NOT_BE_ZERO
-				}
+		switch m.(type) {
+		case *PublishMessage:
+			if id > 0 {
 				self.PacketIDMap[id] = m
 			}
+		case *PubrecMessage, *PubrelMessage, *SubscribeMessage, *UnsubscribeMessage:
+			if id == 0 {
+				return PACKET_ID_SHOULD_NOT_BE_ZERO
+			}
+			self.PacketIDMap[id] = m
 		}
+
+		err = self.Ct.SendMessage(m)
 		if err != nil {
 			EmitError(err)
 			return err
