@@ -216,16 +216,22 @@ func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) 
 	if err != nil {
 		return err
 	}
-	for subscriberID, qos := range nodes[0].Subscribers {
+	for subscriberID, reqQoS := range nodes[0].Subscribers {
 		subscriber, _ := self.Broker.Clients[subscriberID]
 		var id uint16 = 0
 		var err error
-		if qos > 0 {
+		if m.QoS > 0 {
 			id, err = subscriber.getUsablePacketID()
 			if err != nil {
 				panic(err)
 			}
 		}
+		qos := m.QoS
+		if reqQoS < m.QoS {
+			// downgrade the QoS
+			qos = reqQoS
+		}
+
 		pub := NewPublishMessage(false, qos, false, m.TopicName, id, m.Payload)
 		subscriber.WriteChan <- pub
 	}
@@ -307,12 +313,16 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 					// TODO: check all arguments
 					var id uint16
 					if edge.RetainQoS > 0 {
-						id, err = self.getUsablePacketID()
+						id, err = self.getUsablePacketID
 						if err != nil {
 							return err
 						}
 					}
-					pub := NewPublishMessage(false, edge.RetainQoS, true, edge.FullPath, id, []uint8(edge.RetainMessage))
+					qos := edge.RetainQoS
+					if subTopic.QoS < edge.RetainQoS {
+						qos = subTopic.QoS //downgrade the QoS
+					}
+					pub := NewPublishMessage(false, qos, true, edge.FullPath, id, []uint8(edge.RetainMessage))
 					self.WriteChan <- pub
 					EmitError(err)
 				}
