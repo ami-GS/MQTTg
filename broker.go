@@ -47,10 +47,8 @@ func (self *BrokerSideClient) disconnectProcessing() (err error) {
 			broker.TopicRoot.ApplyRetain(w.Topic, w.QoS, w.Message)
 		}
 		nodes, _ := broker.TopicRoot.GetTopicNodes(w.Topic, true)
-		for subscriberID, _ := range nodes[0].Subscribers {
-			// TODO: check which qos should be used, Will.QoS or requested QoS
+		for subscriberID, reqQoS := range nodes[0].Subscribers {
 			subscriber, _ := broker.Clients[subscriberID]
-
 			var id uint16 = 0
 			var err error
 			if w.QoS > 0 {
@@ -59,7 +57,13 @@ func (self *BrokerSideClient) disconnectProcessing() (err error) {
 					panic(err)
 				}
 			}
-			pub := NewPublishMessage(false, w.QoS, w.Retain, w.Topic, id, []uint8(w.Message))
+			qos := w.QoS
+			if reqQoS < w.QoS {
+				//downgrade the QoS
+				qos = reqQoS
+			}
+
+			pub := NewPublishMessage(false, qos, w.Retain, w.Topic, id, []uint8(w.Message))
 			subscriber.WriteChan <- pub
 		}
 	}
@@ -313,7 +317,7 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 					// TODO: check all arguments
 					var id uint16
 					if edge.RetainQoS > 0 {
-						id, err = self.getUsablePacketID
+						id, err = self.getUsablePacketID()
 						if err != nil {
 							return err
 						}
