@@ -321,7 +321,7 @@ func (self *BrokerSideClient) recvSubackMessage(m *SubackMessage) (err error) {
 }
 func (self *BrokerSideClient) recvUnsubscribeMessage(m *UnsubscribeMessage) (err error) {
 	if len(m.TopicNames) == 0 {
-		// protocol violation
+		return PROTOCOL_VIOLATION
 	}
 
 	result := []*SubscribeTopic{}
