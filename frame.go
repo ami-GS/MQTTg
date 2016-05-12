@@ -104,7 +104,11 @@ func (self *FixedHeader) String() string {
 func ParseFixedHeader(r io.Reader) (*FixedHeader, int, error) {
 	fh := &FixedHeader{}
 	var tmp byte
-	binary.Read(r, binary.BigEndian, &tmp)
+	err := binary.Read(r, binary.BigEndian, &tmp)
+	if err != nil {
+		// EOF only
+		return nil, 0, err
+	}
 	fh.Type = MessageType(tmp >> 4)
 	fh.Dup = tmp&0x08 == 0x08
 	fh.QoS = byte((tmp >> 1) & 0x03)
@@ -124,7 +128,8 @@ func ParseFixedHeader(r io.Reader) (*FixedHeader, int, error) {
 		}
 	}
 
-	length, err := RemainDecode(r, &fh.RemainLength)
+	var length int
+	length, err = RemainDecode(r, &fh.RemainLength)
 	if err != nil {
 		return nil, 0, err
 	}
