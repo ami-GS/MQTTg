@@ -324,20 +324,13 @@ func (self *BrokerSideClient) recvUnsubscribeMessage(m *UnsubscribeMessage) (err
 		// protocol violation
 	}
 
+	result := []*SubscribeTopic{}
 	for _, name := range m.TopicNames {
 		self.Broker.TopicRoot.DeleteSubscriber(self.ID, name)
-	}
-	// TODO: optimize here
-	result := []*SubscribeTopic{}
-	for _, t := range self.SubTopics {
-		del := false
-		for _, name := range m.TopicNames {
+		for _, t := range self.SubTopics {
 			if string(t.Topic) == string(name) {
-				del = true
+				result = append(result, t)
 			}
-		}
-		if !del {
-			result = append(result, t)
 		}
 	}
 	self.SubTopics = result
