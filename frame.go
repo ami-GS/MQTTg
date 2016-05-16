@@ -348,9 +348,14 @@ func ParseConnectMessage(fh *FixedHeader, r io.Reader) (Message, error) {
 }
 
 func (self *ConnectMessage) String() string {
+	var ws string = "None"
+	if self.Will != nil {
+		ws = self.Will.String()
+	}
+
 	return fmt.Sprintf("%s\n\tProtocol=%s:%d, Flags=\n%s\t, KeepAlive=%d, ClientID=%s, Will=%s, UserInfo={NAME:%s, PASS:%s}\n",
 		self.FixedHeader.String(), self.Protocol.Name, self.Protocol.Level, self.Flags.String(),
-		self.KeepAlive, self.ClientID, self.Will.String(), self.User.Name, self.User.Passwd)
+		self.KeepAlive, self.ClientID, ws, self.User.Name, self.User.Passwd)
 }
 
 func (self *ConnectMessage) GetPacketID() uint16 {
