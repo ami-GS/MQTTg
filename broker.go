@@ -224,7 +224,10 @@ func (self *BrokerSideClient) recvPublishMessage(m *PublishMessage) (err error) 
 		return err
 	}
 	for subscriberID, reqQoS := range nodes[0].Subscribers {
-		subscriber, _ := self.Broker.Clients[subscriberID]
+		subscriber, ok := self.Broker.Clients[subscriberID]
+		if !ok {
+			continue
+		}
 		self.Broker.checkQoSAndPublish(subscriber, m.QoS, reqQoS, false, m.TopicName, m.Payload)
 	}
 
