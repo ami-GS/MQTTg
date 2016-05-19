@@ -127,17 +127,7 @@ func (self *TopicNode) ApplyNewTopic(topic, fullPath string) {
 	}
 }
 
-func (self *TopicNode) DumpTree() (str string) {
-	if len(self.Nodes) == 0 {
-		return self.FullPath + "\n"
-	}
-	for _, v := range self.Nodes {
-		str += v.DumpTree()
-	}
-	return str
-}
-
-func (self *TopicNode) DumpTree2() (str []string) {
+func (self *TopicNode) DumpTree() (str []string) {
 	if len(self.Nodes) == 0 {
 		return []string{self.Name}
 	}
