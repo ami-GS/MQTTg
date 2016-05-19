@@ -109,4 +109,18 @@ func TestGetTopicNodes(t *testing.T) {
 		}
 
 	}
+
+	a_topicStrings := root.DumpTree()
+	for _, v := range Topics {
+		exist := 0
+		for _, a_v := range a_topicStrings {
+			if v == a_v {
+				exist++
+			}
+		}
+		if exist != 1 {
+			t.Errorf("%v is not in %v", v, a_topicStrings)
+		}
+	}
+
 }

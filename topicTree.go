@@ -132,9 +132,13 @@ func (self *TopicNode) DumpTree() (str []string) {
 		return []string{self.Name}
 	}
 	for _, node := range self.Nodes {
-		deepStrs := node.DumpTree2()
+		deepStrs := node.DumpTree()
+		currentPath := ""
+		if self.Name != "" {
+			currentPath = self.Name + "/"
+		}
 		for _, s := range deepStrs {
-			str = append(str, self.Name+"/"+s)
+			str = append(str, currentPath+s)
 		}
 	}
 	return str
