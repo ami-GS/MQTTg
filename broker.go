@@ -285,19 +285,16 @@ func (self *BrokerSideClient) recvPubcompMessage(m *PubcompMessage) (err error) 
 
 func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err error) {
 	// TODO: check The wild card is permitted
-	returnCodes := make([]SubscribeReturnCode, 0)
-	for _, subTopic := range m.SubscribeTopics {
+	returnCodes := make([]SubscribeReturnCode, len(m.SubscribeTopics))
+	for i, subTopic := range m.SubscribeTopics {
 		// TODO: need to validate wheter there are same topics or not
 		edges, err := self.Broker.TopicRoot.GetTopicNodes(subTopic.Topic, true)
-		codes := make([]SubscribeReturnCode, len(edges))
+		code := SubscribeReturnCode(subTopic.QoS)
 		if err != nil {
-			for i, _ := range codes {
-				codes[i] = SubscribeFailure
-			}
+			code = SubscribeFailure
 		} else {
-			for i, edge := range edges {
+			for _, edge := range edges {
 				edge.Subscribers[self.ID] = subTopic.QoS
-				codes[i] = SubscribeReturnCode(subTopic.QoS)
 				self.SubTopics = append(self.SubTopics,
 					&SubscribeTopic{SubscribeAck,
 						edge.FullPath,
@@ -311,7 +308,7 @@ func (self *BrokerSideClient) recvSubscribeMessage(m *SubscribeMessage) (err err
 				}
 			}
 		}
-		returnCodes = append(returnCodes, codes...)
+		returnCodes[i] = code
 	}
 	// TODO: check whether the number of return codes are correct?
 	suback := NewSubackMessage(m.PacketID, returnCodes)
