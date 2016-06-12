@@ -453,6 +453,7 @@ func (self *Client) recvPingrespMessage(m *PingrespMessage) (err error) {
 		// TODO: this must be 'reasonable amount of time'
 		discon := NewDisconnectMessage()
 		self.WriteChan <- discon
+		return SERVER_TIMED_OUT
 	}
 	return err
 }
